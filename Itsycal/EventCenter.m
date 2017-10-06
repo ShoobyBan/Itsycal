@@ -7,6 +7,7 @@
 //
 
 #import "EventCenter.h"
+#import "Itsycal.h"
 
 // NSUserDefaults key for array of selected calendar IDs.
 static NSString *kSelectedCalendars = @"SelectedCalendars";
@@ -207,8 +208,17 @@ static NSString *kSelectedCalendars = @"SelectedCalendars";
     // Iterate over events matching startDate/endDate. We will
     // populate a dictionary, eventsForDate, that maps each date
     // to an array of events that fall on that date.
+    
+    NSString *ignoreString = [[NSUserDefaults standardUserDefaults] stringForKey:kIgnoreString];
+    
     for (EKEvent *event in events) {
 
+        if (ignoreString != nil &&
+            ![ignoreString isEqualToString:@""] &&
+            [event.title rangeOfString:ignoreString].location != NSNotFound) {
+            continue;
+        }
+        
         // Skip events the current user has declined.
         // This code is very slow. Apparently, loading the 'attendees'
         // property is time consuming. We avoid some of that by first

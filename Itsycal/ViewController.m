@@ -45,6 +45,7 @@
     [[NSUserDefaults standardUserDefaults] removeObserver:self forKeyPath:kShowMonthInIcon];
     [[NSUserDefaults standardUserDefaults] removeObserver:self forKeyPath:kShowDayOfWeekInIcon];
     [[NSUserDefaults standardUserDefaults] removeObserver:self forKeyPath:kClockFormat];
+    [[NSUserDefaults standardUserDefaults] removeObserver:self forKeyPath:kIgnoreString];
 }
 
 #pragma mark -
@@ -961,7 +962,8 @@
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSString *,id> *)change context:(void *)context
 {
-    if ([keyPath isEqualToString:kShowEventDays]) {
+    if ([keyPath isEqualToString:kShowEventDays] ||
+        [keyPath isEqualToString:kIgnoreString]) {
         [self updateAgenda];
     }
     else if ([keyPath isEqualToString:kUseOutlineIcon] ||

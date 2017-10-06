@@ -17,6 +17,7 @@
     NSButton *_showMonth;
     NSButton *_showDayOfWeek;
     NSTextField *_dateTimeFormat;
+    NSTextField *_ignoreString;
     NSButton *_hideIcon;
     HighlightPicker *_highlight;
     NSButton *_showWeeks;
@@ -57,7 +58,7 @@
     _dateTimeFormat.usesSingleLineMode = YES;
     _dateTimeFormat.delegate = self;
     [v addSubview:_dateTimeFormat];
-
+    
     // Datetime help button
     NSButton *helpButton = [NSButton new];
     helpButton.title = @"";
@@ -66,6 +67,16 @@
     helpButton.target = self;
     helpButton.action = @selector(openHelpPage:);
     [v addSubview:helpButton];
+
+    // Ignore string text field
+    _ignoreString = [NSTextField textFieldWithString:@""];
+    _ignoreString.translatesAutoresizingMaskIntoConstraints = false;
+    _ignoreString.placeholderString = NSLocalizedString(@"Ignore title substring", @"");
+    _ignoreString.refusesFirstResponder = YES;
+    _ignoreString.bezelStyle = NSTextFieldRoundedBezel;
+    _ignoreString.usesSingleLineMode = YES;
+    _ignoreString.delegate = self;
+    [v addSubview:_ignoreString];
 
     // Highlight control
     _highlight = [HighlightPicker new];
@@ -87,12 +98,13 @@
     [v addSubview:_themePopup];
     
 
-    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @20} views:NSDictionaryOfVariableBindings(_useOutlineIcon, _showMonth, _showDayOfWeek, _showWeeks, _showLocation, _dateTimeFormat, helpButton, _hideIcon, _highlight, themeLabel, _themePopup)];
-    [vfl :@"V:|-m-[_useOutlineIcon]-[_showMonth]-[_showDayOfWeek]-m-[_dateTimeFormat]-[_hideIcon]-m-[_highlight]-m-[_themePopup]-m-[_showWeeks]-[_showLocation]-m-|"];
+    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @20} views:NSDictionaryOfVariableBindings(_useOutlineIcon, _showMonth, _showDayOfWeek, _showWeeks, _showLocation, _dateTimeFormat, _ignoreString, helpButton, _hideIcon, _highlight, themeLabel, _themePopup)];
+    [vfl :@"V:|-m-[_useOutlineIcon]-[_showMonth]-[_showDayOfWeek]-m-[_dateTimeFormat]-m-[_ignoreString]-[_hideIcon]-m-[_highlight]-m-[_themePopup]-m-[_showWeeks]-[_showLocation]-m-|"];
     [vfl :@"H:|-m-[_useOutlineIcon]-(>=m)-|"];
     [vfl :@"H:|-m-[_showMonth]-(>=m)-|"];
     [vfl :@"H:|-m-[_showDayOfWeek]-(>=m)-|"];
     [vfl :@"H:|-m-[_dateTimeFormat]-[helpButton]-m-|" :NSLayoutFormatAlignAllCenterY];
+    [vfl :@"H:|-m-[_ignoreString]-m-|" :NSLayoutFormatAlignAllCenterY];
     [vfl :@"H:|-m-[_hideIcon]-(>=m)-|"];
     [vfl :@"H:|-m-[_highlight]-(>=m)-|"];
     [vfl :@"H:|-m-[themeLabel]-[_themePopup]-(>=m)-|" :NSLayoutFormatAlignAllFirstBaseline];
@@ -119,7 +131,10 @@
 
     // Binding for datetime format
     [_dateTimeFormat bind:@"value" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kClockFormat] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES), NSMultipleValuesPlaceholderBindingOption: _dateTimeFormat.placeholderString, NSNoSelectionPlaceholderBindingOption: _dateTimeFormat.placeholderString, NSNotApplicablePlaceholderBindingOption: _dateTimeFormat.placeholderString, NSNullPlaceholderBindingOption: _dateTimeFormat.placeholderString}];
-
+    
+    // Ignore substring
+    [_ignoreString bind:@"value" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kIgnoreString] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES), NSMultipleValuesPlaceholderBindingOption: _ignoreString.placeholderString, NSNoSelectionPlaceholderBindingOption: _ignoreString.placeholderString, NSNotApplicablePlaceholderBindingOption: _ignoreString.placeholderString, NSNullPlaceholderBindingOption: _ignoreString.placeholderString}];
+    
     // Bindings for showWeeks preference
     [_showWeeks bind:@"value" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kShowWeeks] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
 

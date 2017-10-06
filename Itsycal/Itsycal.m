@@ -20,5 +20,6 @@ NSString * const kShowMonthInIcon = @"ShowMonthInIcon";
 NSString * const kShowDayOfWeekInIcon = @"ShowDayOfWeekInIcon";
 NSString * const kAllowOutsideApplicationsFolder = @"AllowOutsideApplicationsFolder";
 NSString * const kClockFormat = @"ClockFormat";
+NSString * const kIgnoreString = @"IgnoreString";
 NSString * const kHideIcon = @"HideIcon";
 NSString * const kShowLocation = @"ShowLocation";
