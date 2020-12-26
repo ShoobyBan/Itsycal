@@ -6,6 +6,7 @@
 //  Copyright (c) 2015 mowglii.com. All rights reserved.
 //
 
+#import <os/log.h>
 #import "ViewController.h"
 #import "Itsycal.h"
 #import "ItsycalWindow.h"
@@ -15,9 +16,9 @@
 #import "PrefsGeneralVC.h"
 #import "PrefsAppearanceVC.h"
 #import "PrefsAboutVC.h"
-#import "TooltipViewController.h"
 #import "MoButton.h"
 #import "MoVFLHelper.h"
+#import "MoUtils.h"
 #import "Sparkle/SUUpdater.h"
 
 @implementation ViewController
@@ -31,10 +32,14 @@
     AgendaViewController  *_agendaVC;
     NSLayoutConstraint    *_bottomMargin;
     NSDateFormatter       *_iconDateFormatter;
-    NSTimer   *_pastEventsTimer;
-    NSTimer   *_clockTimer;
+    NSTimeInterval         _inactiveTime;
+    NSDictionary          *_filteredEventsForDate;
+    NSTimer   *_timer;
     NSString  *_clockFormat;
     BOOL       _clockUsesSeconds;
+    BOOL       _clockUsesTime;
+    NSRect     _screenFrame;
+    NSPopover *_newEventPopover;
 }
 
 - (void)dealloc
@@ -58,7 +63,6 @@
     
     // MoCalendar
     _moCal = [MoCalendar new];
-    _moCal.translatesAutoresizingMaskIntoConstraints = NO;
     _moCal.delegate = self;
     _moCal.target = self;
     _moCal.doubleAction = @selector(addCalendarEvent:);
@@ -67,7 +71,6 @@
     // Convenience function to config buttons.
     MoButton* (^btn)(NSString*, NSString*, NSString*, SEL) = ^MoButton* (NSString *imageName, NSString *tip, NSString *key, SEL action) {
         MoButton *btn = [MoButton new];
-        [btn setButtonType:NSMomentaryChangeButton];
         [btn setTarget:self];
         [btn setAction:action];
         [btn setToolTip:tip];
@@ -79,25 +82,26 @@
     };
 
     // Add event, Calendar.app, and Options buttons
-    _btnAdd = btn(@"btnAdd", NSLocalizedString(@"New Event... ⌘N", @""), @"n", @selector(addCalendarEvent:));
-    _btnCal = btn(@"btnCal", NSLocalizedString(@"Open Calendar... ⌘O", @""), @"o", @selector(showCalendarApp:));
+    _btnAdd = btn(@"btnAdd", NSLocalizedString(@"New Event   ⌘N", @""), @"n", @selector(addCalendarEvent:));
+    _btnCal = btn(@"btnCal", NSLocalizedString(@"Open Calendar   ⌘O", @""), @"o", @selector(showCalendarApp:));
     _btnOpt = btn(@"btnOpt", NSLocalizedString(@"Options", @""), @"", @selector(showOptionsMenu:));
-    _btnPin = btn(@"btnPin", NSLocalizedString(@"Pin Itsycal... P", @""), @"p", @selector(pin:));
+    _btnPin = btn(@"btnPin", NSLocalizedString(@"Pin Itsycal   P", @""), @"p", @selector(pin:));
     _btnPin.keyEquivalentModifierMask = 0;
     _btnPin.alternateImage = [NSImage imageNamed:@"btnPinAlt"];
-    [_btnPin setButtonType:NSToggleButton];
+    [_btnPin setButtonType:NSButtonTypeToggle];
     
     // Agenda
     _agendaVC = [AgendaViewController new];
     _agendaVC.delegate = self;
+    _agendaVC.identifier = @"AgendaVC";
     NSView *agenda = _agendaVC.view;
     [v addSubview:agenda];
 
     // Constraints
     MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:nil views:NSDictionaryOfVariableBindings(_moCal, _btnAdd, _btnCal, _btnOpt, _btnPin, agenda)];
-    [vfl :@"H:|[_moCal]|"];
+    [vfl :@"H:|-2-[_moCal]-2-|"];
     [vfl :@"H:|[agenda]|"];
-    [vfl :@"H:|-6-[_btnAdd]-(>=0)-[_btnPin]-10-[_btnCal]-10-[_btnOpt]-6-|" :NSLayoutFormatAlignAllCenterY];
+    [vfl :@"H:|-8-[_btnAdd]-(>=0)-[_btnPin]-10-[_btnCal]-10-[_btnOpt]-8-|" :NSLayoutFormatAlignAllCenterY];
     [vfl :@"V:|[_moCal]-6-[_btnOpt]"];
     [vfl :@"V:[agenda]-(-1)-|"];
     
@@ -116,6 +120,8 @@
     // depend on previous ones.
     
     _iconDateFormatter = [NSDateFormatter new];
+    _iconDateFormatter.formattingContext = NSFormattingContextStandalone;
+    _inactiveTime = 0;
 
     // Calendar is 'autoupdating' so it handles timezone changes properly.
     _nsCal = [NSCalendar autoupdatingCurrentCalendar];
@@ -130,16 +136,18 @@
     _ec = [[EventCenter alloc] initWithCalendar:_nsCal delegate:self];
     
     TooltipViewController *tooltipVC = [TooltipViewController new];
-    tooltipVC.ec = _ec;
+    tooltipVC.tooltipDelegate = self;
     _moCal.tooltipVC = tooltipVC;
 
-    [self updatePastEventsTimer];
+    [self updateTimer];
     
     // Now that everything else is set up, we file for notifications.
     // Some of the notification handlers rely on stuff we just set up.
     [self fileNotifications];
 
     [_moCal bind:@"showWeeks" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kShowWeeks] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+    [_moCal bind:@"showEventDots" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kShowEventDots] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+    [_moCal bind:@"useColoredDots" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kUseColoredDots] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
     [_moCal bind:@"highlightedDOWs" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kHighlightedDOWs] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
     [_moCal bind:@"weekStartDOW" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kWeekStartDOW] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
     [_agendaVC bind:@"showLocation" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kShowLocation] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
@@ -163,17 +171,10 @@
     [super viewWillAppear];
 
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    _btnPin.state = [defaults boolForKey:kPinItsycal] ? NSOnState : NSOffState;
+    _btnPin.state = [defaults boolForKey:kPinItsycal] ? NSControlStateValueOn : NSControlStateValueOff;
     _moCal.showWeeks = [defaults boolForKey:kShowWeeks];
 
     [self.itsycalWindow makeFirstResponder:_moCal];
-}
-
-- (void)viewDidAppear
-{
-    [super viewDidAppear];
-
-    [self positionItsycalWindow];
 }
 
 #pragma mark -
@@ -186,6 +187,7 @@
     NSUInteger flags = [theEvent modifierFlags];
     BOOL noFlags = !(flags & (NSEventModifierFlagCommand | NSEventModifierFlagShift | NSEventModifierFlagOption | NSEventModifierFlagControl));
     BOOL cmdFlag = (flags & NSEventModifierFlagCommand) &&  !(flags & (NSEventModifierFlagShift | NSEventModifierFlagOption | NSEventModifierFlagControl));
+    BOOL cmdOptFlag = (flags & NSEventModifierFlagCommand) && (flags & NSEventModifierFlagOption) &&  !(flags & (NSEventModifierFlagShift | NSEventModifierFlagControl));
     unichar keyChar = [charsIgnoringModifiers characterAtIndex:0];
     
     if (keyChar == 'w' && noFlags) {
@@ -197,6 +199,9 @@
     else if (keyChar == ',' && cmdFlag) {
         [self showPrefs:self];
     }
+    else if (keyChar == 'r' && cmdOptFlag) {
+        [_ec refresh];
+    }
     else {
         [super keyDown:theEvent];
     }
@@ -204,9 +209,24 @@
 
 - (void)addCalendarEvent:(id)sender
 {
+    // Close popover if it's already showing
+    if (_newEventPopover.shown) {
+        [_newEventPopover close];
+        // If sender is _moCal, we are here because
+        //  the user double-clicked on a date. We want
+        //  to open the popover at that date. If the
+        //  popover is already open, we close it and
+        //  then re-open it at the double-clicked date.
+        // If sender is NOT _moCal, we are here because
+        //  the user clicked the New Event button. This
+        //  is a toggle button, so if the popover is
+        //  already open, we close it and return.
+        if (sender != _moCal) return;
+    }
+    
     // Was prefs window open in the past and then hidden when
     // app became inactive? This prevents it from reappearing.
-    [_prefsWC close];
+    [self.prefsWC close];
     
     [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
     
@@ -235,12 +255,22 @@
         return;
     }
 
+    if (!_newEventPopover) {
+        _newEventPopover = [NSPopover new];
+        _newEventPopover.animates = NO;
+        _newEventPopover.delegate = self;
+    }
     EventViewController *eventVC = [EventViewController new];
     eventVC.ec = _ec;
+    eventVC.enclosingPopover = _newEventPopover;
     eventVC.cal = _nsCal;
     eventVC.title = @"";
     eventVC.calSelectedDate = MakeNSDateWithDate(_moCal.selectedDate, _nsCal);
-    [self presentViewControllerAsModalWindow:eventVC];
+    
+    NSRect positionRect = NSOffsetRect(_btnAdd.frame, -2, 0);
+    _newEventPopover.contentViewController = eventVC;
+    _newEventPopover.appearance = NSApp.effectiveAppearance;
+    [_newEventPopover showRelativeToRect:positionRect ofView:self.view preferredEdge:NSRectEdgeMinX];
 }
 
 - (void)showCalendarApp:(id)sender
@@ -256,7 +286,8 @@
     // Use URL scheme to open BusyCal or Fantastical2 on the
     // date selected in our calendar.
     
-    if ([defaultCalendarAppBundleID isEqualToString:@"com.busymac.busycal2"]) {
+    if ([defaultCalendarAppBundleID isEqualToString:@"com.busymac.busycal2"] ||
+        [defaultCalendarAppBundleID isEqualToString:@"com.busymac.busycal3"]) {
         [self showCalendarAppWithURLScheme:@"busycalevent://date"];
         return;
     }
@@ -294,9 +325,13 @@
     NSMenu *optMenu = [[NSMenu alloc] initWithTitle:@"Options Menu"];
     NSInteger i = 0;
 
-    [optMenu insertItemWithTitle:NSLocalizedString(@"Preferences...", @"") action:@selector(showPrefs:) keyEquivalent:@"," atIndex:i++];
+    [optMenu insertItemWithTitle:NSLocalizedString(@"About Itsycal", @"") action:@selector(showAbout:) keyEquivalent:@"" atIndex:i++];
+    [optMenu insertItemWithTitle:NSLocalizedString(@"Check for Updates…", @"") action:@selector(checkForUpdates:) keyEquivalent:@"" atIndex:i++];
     [optMenu insertItem:[NSMenuItem separatorItem] atIndex:i++];
-    [optMenu insertItemWithTitle:NSLocalizedString(@"Check for Updates...", @"") action:@selector(checkForUpdates:) keyEquivalent:@"" atIndex:i++];
+    [optMenu insertItemWithTitle:NSLocalizedString(@"Preferences…", @"") action:@selector(showPrefs:) keyEquivalent:@"," atIndex:i++];
+    [optMenu insertItemWithTitle:NSLocalizedString(@"Date & Time…", @"") action:@selector(openDateAndTimePrefs:) keyEquivalent:@"" atIndex:i++];
+    [optMenu insertItem:[NSMenuItem separatorItem] atIndex:i++];
+    [optMenu insertItemWithTitle:NSLocalizedString(@"Help…", @"") action:@selector(navigateToHelp:) keyEquivalent:@"" atIndex:i++];
     [optMenu insertItem:[NSMenuItem separatorItem] atIndex:i++];
     [optMenu insertItemWithTitle:NSLocalizedString(@"Quit Itsycal", @"") action:@selector(terminate:) keyEquivalent:@"q" atIndex:i++];
     NSPoint pt = NSOffsetRect(_btnOpt.frame, -5, -10).origin;
@@ -305,14 +340,12 @@
 
 - (void)pin:(id)sender
 {
-    BOOL pin = _btnPin.state == NSOnState;
+    BOOL pin = _btnPin.state == NSControlStateValueOn;
     [[NSUserDefaults standardUserDefaults] setBool:pin forKey:kPinItsycal];
 }
 
-- (void)showPrefs:(id)sender
+- (NSWindowController *)prefsWC
 {
-    [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
-    
     if (!_prefsWC) {
         // VCs for each tab in prefs panel.
         PrefsGeneralVC *prefsGeneralVC = [PrefsGeneralVC new];
@@ -332,12 +365,47 @@
         _prefsWC.window.contentView.wantsLayer = YES;
         [_prefsWC.window center];
     }
-    [_prefsWC showWindow:self];
+    return _prefsWC;
+}
+
+- (PrefsVC *)prefsVC
+{
+    return (PrefsVC *)self.prefsWC.contentViewController;
+}
+
+- (void)showAbout:(id)sender
+{
+    [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
+    [_newEventPopover close];
+    [self.prefsVC showAbout];
+    [self.prefsWC showWindow:self];
+}
+
+- (void)showPrefs:(id)sender
+{
+    [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
+    [_newEventPopover close];
+    [self.prefsVC showPrefs];
+    [self.prefsWC showWindow:self];
 }
 
 - (void)checkForUpdates:(id)sender
 {
     [[SUUpdater sharedUpdater] checkForUpdates:self];
+}
+
+- (void)openDateAndTimePrefs:(id)sender
+{
+    // Can this be done without hardcoding a path?
+    NSString *path = @"/System/Library/PreferencePanes/DateAndTime.prefPane";
+    NSURL *url = [NSURL fileURLWithPath:path];
+    [NSWorkspace.sharedWorkspace openURL:url];
+}
+
+- (void)navigateToHelp:(id)sender
+{
+    NSURL *url = [NSURL URLWithString:@"https://www.mowglii.com/itsycal/help.html"];
+    [NSWorkspace.sharedWorkspace openURL:url];
 }
 
 #pragma mark -
@@ -348,16 +416,8 @@
     _statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
     _statusItem.button.target = self;
     _statusItem.button.action = @selector(statusItemClicked:);
-    _statusItem.highlightMode = NO; // Deprecated in 10.10, but what is alternative?
-
-    // Use monospaced font in case user sets custom clock format
-    // so the status item doesn't move when the time changes.
-    // We modify the default font with a font descriptor instead
-    // of using +monospacedDigitSystemFontOfSize:weight: because
-    // we get slightly darker looking ':' characters this way.
-    NSFontDescriptor *fontDesc = [_statusItem.button.font fontDescriptor];
-    fontDesc = [fontDesc fontDescriptorByAddingAttributes:@{NSFontFeatureSettingsAttribute: @[@{NSFontFeatureTypeIdentifierKey: @(kNumberSpacingType), NSFontFeatureSelectorIdentifierKey: @(kMonospacedNumbersSelector)}]}];
-    _statusItem.button.font = [NSFont fontWithDescriptor:fontDesc size:0];
+    [_statusItem.button sendActionOn:NSEventMaskLeftMouseDown];
+    [(NSButtonCell *)_statusItem.button.cell setHighlightsBy:NSNoCellMask];
 
     // Remember item position in menubar. (@pskowronek (Github))
     [_statusItem setAutosaveName:@"ItsycalStatusItem"];
@@ -369,6 +429,28 @@
     // Notification for when status item view moves
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(statusItemMoved:) name:NSWindowDidMoveNotification object:_statusItem.button.window];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(statusItemMoved:) name:NSWindowDidResizeNotification object:_statusItem.button.window];
+}
+
+- (void)updateStatusItemFont
+{
+    static NSFontDescriptor *origFontDesc = nil;
+    static NSFontDescriptor *monoFontDesc = nil;
+    // Use monospaced font if user sets custom clock format that
+    // uses seconds so the status item doesn't move distractingly
+    // every second. It still moves each minute if showing time.
+    // We modify the default font with a font descriptor instead
+    // of using +monospacedDigitSystemFontOfSize:weight: because
+    // we get slightly darker looking ':' characters this way.
+    if (_clockUsesSeconds) {
+        if (!monoFontDesc) {
+            origFontDesc = [_statusItem.button.font fontDescriptor];
+            monoFontDesc = [origFontDesc fontDescriptorByAddingAttributes:@{NSFontFeatureSettingsAttribute: @[@{NSFontFeatureTypeIdentifierKey: @(kNumberSpacingType), NSFontFeatureSelectorIdentifierKey: @(kMonospacedNumbersSelector)}]}];
+        }
+        _statusItem.button.font = [NSFont fontWithDescriptor:monoFontDesc size:0];
+    }
+    else if (origFontDesc) {
+        _statusItem.button.font = [NSFont fontWithDescriptor:origFontDesc size:0];
+    }
 }
 
 - (void)removeStatusItem
@@ -421,8 +503,55 @@
     }
     if (_clockFormat) {
         [_iconDateFormatter setDateFormat:_clockFormat];
-        _statusItem.button.title = [_iconDateFormatter stringFromDate:[NSDate new]];
-        [self updateClock];
+        // After updating the Xcode Deployment Target to macOS 10.14 from
+        // macOS 10.12, the button title renders slightly higher than it should
+        // on Mojave and slightly lower than it should on Catalina.
+        // As a workaround, instead of setting the title with an NSString,
+        // provide an NSAttributedString with a baseline offset.
+        CGFloat scaleFactor = NSScreen.mainScreen.backingScaleFactor ?: 2.0;
+        CGFloat baselineOffset = -1.0 / scaleFactor;
+        if (@available(macOS 10.15, *)) {
+            baselineOffset = 0.5;
+        }
+        if (@available(macOS 10.16, *)) {
+            baselineOffset = -1.0 / scaleFactor;
+        }
+        _statusItem.button.attributedTitle = [[NSAttributedString alloc] initWithString:[_iconDateFormatter stringFromDate:[NSDate new]] attributes:@{NSBaselineOffsetAttributeName: @(baselineOffset)}];
+    }
+    [self adjustStatusItemWidthIfNecessary];
+}
+
+- (void)adjustStatusItemWidthIfNecessary
+{
+    // Set a fixed width for _statusItem if it uses a clock format
+    // but doesn't show seconds. This prevents the _statusItem from
+    // slightly shifting in the menubar when time changes due to the
+    // different widths of digits in the proportional font.
+    static NSStatusBarButton *dummyButton = nil;
+    if (_clockFormat && !_clockUsesSeconds) {
+        if (!dummyButton) {
+            NSFontDescriptor *monoFontDesc = [[_statusItem.button.font fontDescriptor] fontDescriptorByAddingAttributes:@{NSFontFeatureSettingsAttribute: @[@{NSFontFeatureTypeIdentifierKey: @(kNumberSpacingType), NSFontFeatureSelectorIdentifierKey: @(kMonospacedNumbersSelector)}]}];
+            dummyButton = [NSStatusBarButton new];
+            dummyButton.font = [NSFont fontWithDescriptor:monoFontDesc size:0];
+        }
+        // Same logic as -updateMenubarIcon to set up dummyButton
+        if ([[NSUserDefaults standardUserDefaults] boolForKey:kHideIcon]) {
+            dummyButton.image = nil;
+            dummyButton.imagePosition = NSNoImage;
+        }
+        else {
+            dummyButton.image = _statusItem.button.image;
+            dummyButton.imagePosition = _clockFormat ? NSImageLeft : NSImageOnly;
+        }
+        dummyButton.title = _statusItem.button.title;
+        [dummyButton sizeToFit];
+        _statusItem.length = NSWidth(dummyButton.frame) + 2;
+        os_log(OS_LOG_DEFAULT, "[%@] %@ --> %.0f, %.0f", [self iconText], _statusItem.button.title,
+              _statusItem.button.frame.size.width, _statusItem.button.image.size.width);
+    }
+    else {
+        _statusItem.length = NSVariableStatusItemLength;
+        os_log(OS_LOG_DEFAULT, "VARIABLE LENGTH ITEM");
     }
 }
 
@@ -450,7 +579,7 @@
     iconImage = [NSImage imageWithSize:NSMakeSize(width, height) flipped:NO drawingHandler:^BOOL (NSRect rect) {
 
         // Get image's context.
-        CGContextRef const ctx = [[NSGraphicsContext currentContext] graphicsPort];
+        CGContextRef const ctx = [[NSGraphicsContext currentContext] CGContext];
 
         if (useOutlineIcon) {
 
@@ -488,7 +617,7 @@
 
             // Switch to the context for drawing.
             // Drawing done in this context is scaled.
-            NSGraphicsContext *maskGraphicsContext = [NSGraphicsContext graphicsContextWithGraphicsPort:maskContext flipped:NO];
+            NSGraphicsContext *maskGraphicsContext = [NSGraphicsContext graphicsContextWithCGContext:maskContext flipped:NO];
             [NSGraphicsContext saveGraphicsState];
             [NSGraphicsContext setCurrentContext:maskGraphicsContext];
 
@@ -528,6 +657,18 @@
     NSRect statusItemFrame = [_statusItem.button.window convertRectToScreen:_statusItem.button.frame];
 
     // Hack alert:
+    // MacOS 11 does not report the correct frame for _statusItem.button
+    // if its length is adjusted (see -adjustStatusItemWidthIfNecessary).
+    // As a result, this method positions the window *uncentered* below
+    // the status item. Adjust the frame with a value empirically
+    // determined to make the window appear centered.
+    if (@available(macOS 11.0, *)) {
+        if (_statusItem.length != NSVariableStatusItemLength) {
+            statusItemFrame.size.width += 15;
+        }
+    }
+    
+    // Hack alert:
     // Which screen is the status item on? I'd like to just use
     // _statusItem.button.window.screen, but that property is nil
     // when the user is working with a full screen app: the menu
@@ -551,6 +692,7 @@
             break;
         }
     }
+    _screenFrame = statusItemScreen.frame;
     CGFloat screenMaxX = NSMaxX(statusItemScreen.frame);
 
     // Constrain the menu item's frame to be no higher than the top
@@ -560,6 +702,9 @@
     // shown clipped at the top. Prevent that by constraining the
     // top of the menu item to be at most the top of the screen.
     statusItemFrame.origin.y = MIN(statusItemFrame.origin.y, NSMaxY(statusItemScreen.frame));
+    
+    // So that agenda height can adjust to fit screen if needed.
+    [_agendaVC.view setNeedsLayout:YES];
 
     [self.itsycalWindow positionRelativeToRect:statusItemFrame screenMaxX:screenMaxX];
 }
@@ -611,7 +756,7 @@
         }
     }
     if ([self.itsycalWindow occlusionState] & NSWindowOcclusionStateVisible) {
-        [self.itsycalWindow orderOut:self];
+        [self hideItsycalWindow];
     }
     else {
         [self showItsycalWindow];
@@ -632,12 +777,20 @@
     [self positionItsycalWindow];
     [self.itsycalWindow makeKeyAndOrderFront:self];
     [self.itsycalWindow makeFirstResponder:_moCal];
+    _inactiveTime = 0;
+}
+
+- (void)hideItsycalWindow
+{
+    [self.itsycalWindow orderOut:self];
+    [_newEventPopover close];
+    _inactiveTime = MonotonicClockTime();
 }
 
 - (void)cancel:(id)sender
 {
     // User pressed 'esc'.
-    [self.itsycalWindow orderOut:self];
+    [self hideItsycalWindow];
 }
 
 - (void)windowDidResize:(NSNotification *)notification
@@ -647,8 +800,15 @@
 
 - (void)windowDidResignKey:(NSNotification *)notification
 {
-    if (_btnPin.state == NSOffState) {
-        [self.itsycalWindow orderOut:self];
+    if (_btnPin.state == NSControlStateValueOff) {
+        [self hideItsycalWindow];
+    }
+}
+
+- (void)popoverDidClose:(NSNotification *)notification
+{
+    if (notification.object == _newEventPopover) {
+        _newEventPopover = nil;
     }
 }
 
@@ -681,6 +841,10 @@
 
 - (void)agendaWantsToDeleteEvent:(EKEvent *)event
 {
+    // Was prefs window open in the past and then hidden when
+    // app became inactive? This prevents it from reappearing.
+    [self.prefsWC close];
+    
     [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
     
     // Make a string showing the event title and duration.
@@ -734,10 +898,15 @@
     // Delete this event (or future events).
     NSError *error = NULL;
     EKSpan span = (eventRepeats && response == NSAlertSecondButtonReturn) ? EKSpanFutureEvents : EKSpanThisEvent;
-    BOOL result = [_ec.store removeEvent:event span:span commit:YES error:&error];
+    BOOL result = [_ec removeEvent:event span:span error:&error];
     if (result == NO && error != nil) {
         [[NSAlert alertWithError:error] runModal];
     }
+}
+
+- (CGFloat)agendaMaxPossibleHeight
+{
+    return NSHeight(_screenFrame) - NSHeight(_moCal.frame) - 140;
 }
 
 #pragma mark -
@@ -756,9 +925,46 @@
     [self updateAgenda];
 }
 
-- (BOOL)dateHasDot:(MoDate)date
+- (NSArray<NSColor *> *)dotColorsForDate:(MoDate)date useColor:(BOOL)useColor
 {
-    return [_ec eventsForDate:date] != nil;
+    NSArray<EventInfo *> *events = [self eventsForDate:date];
+    if (!events || events.count == 0) return nil;
+    if (!useColor) return @[];
+    NSMutableOrderedSet *colors = [NSMutableOrderedSet new];
+    for (EventInfo *eventInfo in events) {
+        [colors addObject:eventInfo.event.calendar.color];
+        if (colors.count == 3) break;
+    }
+    switch (colors.count) {
+        case 1: return @[colors[0]];
+        case 2: return @[colors[0], colors[1]];
+        case 3: return @[colors[0], colors[1], colors[2]];
+        default: return nil;
+    }
+}
+
+#pragma mark - Events
+
+- (NSArray *)eventsForDate:(MoDate)date
+{
+    NSDate *nsDate = MakeNSDateWithDate(date, _nsCal);
+    return _filteredEventsForDate[nsDate];
+}
+
+- (NSArray *)datesAndEventsForDate:(MoDate)date days:(NSInteger)days
+{
+    NSMutableArray *datesAndEvents = [NSMutableArray new];
+    MoDate endDate = AddDaysToDate(days, date);
+    while (CompareDates(date, endDate) < 0) {
+        NSDate *nsDate = MakeNSDateWithDate(date, _nsCal);
+        NSArray *events = _filteredEventsForDate[nsDate];
+        if (events != nil) {
+            [datesAndEvents addObject:nsDate];
+            [datesAndEvents addObjectsFromArray:events];
+        }
+        date = AddDaysToDate(1, date);
+    }
+    return datesAndEvents;
 }
 
 #pragma mark -
@@ -766,54 +972,40 @@
 
 - (void)eventCenterEventsChanged
 {
+    os_log(OS_LOG_DEFAULT, "%s", __FUNCTION__);
+    _filteredEventsForDate = [_ec filteredEventsForDate];
     [_moCal reloadData];
     [self updateAgenda];
 }
 
 - (MoDate)fetchStartDate
 {
-    return AddDaysToDate(-40, _moCal.monthDate);
+    return _moCal.firstDate;
 }
 
 - (MoDate)fetchEndDate
 {
-    return AddDaysToDate(80, _moCal.monthDate);
+    return AddDaysToDate([self daysToShowInAgenda], _moCal.lastDate);
 }
 
 #pragma mark -
 #pragma mark Agenda
 
-- (void)updateAgenda
+- (NSInteger)daysToShowInAgenda
 {
     NSInteger days = [[NSUserDefaults standardUserDefaults] integerForKey:kShowEventDays];
-    days = MIN(MAX(days, 0), 7); // days is in range 0..7
-    _agendaVC.events = [_ec datesAndEventsForDate:_moCal.selectedDate days:days];
-    [_agendaVC reloadData];
-    _bottomMargin.constant = _agendaVC.events.count == 0 ? 26 : 30;
+    days = MIN(MAX(days, 0), 9); // days is in range 0..9
+    // days == 8 really means 14; 9 really means 31
+    if (days == 8) days = 14; else if (days == 9) days = 31;
+    return days;
 }
 
-- (void)updatePastEventsTimer
+- (void)updateAgenda
 {
-    [_pastEventsTimer invalidate];
-    
-    __weak typeof(self) weakSelf = self;
-    _pastEventsTimer = [NSTimer timerWithTimeInterval:60 repeats:NO block:^(NSTimer * _Nonnull timer) {
-        [weakSelf updatePastEventsTimer];
-    }];
-    
-    // Align the timer's fireDate to real-time minutes plus 1 second.
-    // We do this by subtracting the extra seconds or fractional
-    // seconds from the fireDate and then adding 1 extra second.
-    NSCalendarUnit extraUnits = NSCalendarUnitSecond | NSCalendarUnitNanosecond;
-    NSDateComponents *extraComponents = [_nsCal components:extraUnits fromDate:_pastEventsTimer.fireDate];
-    NSTimeInterval extraSeconds = (NSTimeInterval)extraComponents.nanosecond / (NSTimeInterval)NSEC_PER_SEC;
-    extraSeconds += extraComponents.second + 1; // add extra second so we are 1 second past the minute.
-    _pastEventsTimer.fireDate = [_pastEventsTimer.fireDate dateByAddingTimeInterval:-extraSeconds];
-    
-    // Add the timer to the main runloop.
-    [[NSRunLoop mainRunLoop] addTimer:_pastEventsTimer forMode:NSRunLoopCommonModes];
-    
-    [_agendaVC dimEventsIfNecessary];
+    NSInteger days = [self daysToShowInAgenda];
+    _agendaVC.events = [self datesAndEventsForDate:_moCal.selectedDate days:days];
+    [_agendaVC reloadData];
+    _bottomMargin.constant = _agendaVC.events.count == 0 ? 25 : 30;
 }
 
 #pragma mark -
@@ -825,34 +1017,45 @@
     return MakeDate(c.year, c.month-1, c.day);
 }
 
-- (void)updateClock
+- (void)resetCalendarToToday
 {
-    [_clockTimer invalidate];
+    MoDate today = [self todayDate];
+    _moCal.todayDate = today;
+    _moCal.selectedDate = today;
+}
 
-    // If the clock uses seconds, fire the timer after a second.
-    // Otherwise, fire after 60 seconds. We could just fire every
-    // second in either case, but we want to be as efficient as
-    // possible and only fire when needed. Even firing every 60
-    // seconds is too much if the format string doesn't contain
-    // any time specifiers.
-    NSTimeInterval clockInterval = _clockUsesSeconds ? 1 : 60;
-
-    __weak typeof(self) weakSelf = self;
-    _clockTimer = [NSTimer timerWithTimeInterval:clockInterval repeats:NO block:^(NSTimer * _Nonnull timer) {
-        [weakSelf updateMenubarIcon];
-    }];
-
-    // Align the timer's fireDate to real-time minutes or seconds.
-    // We do this by subtracting the extra seconds or fractional
-    // seconds from the fireDate.
-    NSCalendarUnit extraUnits = _clockUsesSeconds ? NSCalendarUnitNanosecond : NSCalendarUnitSecond | NSCalendarUnitNanosecond;
-    NSDateComponents *extraComponents = [_nsCal components:extraUnits fromDate:_clockTimer.fireDate];
-    NSTimeInterval extraSeconds = (NSTimeInterval)extraComponents.nanosecond / (NSTimeInterval)NSEC_PER_SEC;
-    extraSeconds += _clockUsesSeconds ? 0 : extraComponents.second;
-    _clockTimer.fireDate = [_clockTimer.fireDate dateByAddingTimeInterval:-extraSeconds];
-
-    // Add the timer to the main runloop.
-    [[NSRunLoop mainRunLoop] addTimer:_clockTimer forMode:NSRunLoopCommonModes];
+- (void)updateTimer
+{
+    // Set up _timer to fire on next minute or second.
+    NSDateComponents *components = [_nsCal components:NSCalendarUnitEra | NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay | NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond fromDate:[NSDate new]];
+    if (_clockUsesSeconds) {
+        components.second += 1;
+    }
+    else {
+        components.minute += 1;
+        components.second = 0;
+    }
+    NSDate *fireDate = [_nsCal dateFromComponents:components];
+    [_timer invalidate];
+    _timer = [[NSTimer alloc] initWithFireDate:fireDate interval:0 target:self selector:@selector(updateTimer) userInfo:nil repeats:NO];
+    [NSRunLoop.mainRunLoop addTimer:_timer forMode:NSRunLoopCommonModes];
+    
+    // Check if past events should be dimmed each minute.
+    static NSTimeInterval dimEventsTime = 0;
+    NSTimeInterval currentTime = MonotonicClockTime();
+    NSTimeInterval elapsedTime = currentTime - dimEventsTime;
+    if (elapsedTime > 60 || fabs(elapsedTime - 60) < 0.5) {
+        [_agendaVC dimEventsIfNecessary];
+        dimEventsTime = currentTime;
+    }
+    // Reset calendar to today after 10 minutes of inactivity.
+    elapsedTime = currentTime - _inactiveTime;
+    if (_inactiveTime && (elapsedTime > 600 || fabs(elapsedTime - 600) < 0.5)) {
+        [self resetCalendarToToday];
+        _inactiveTime = 0;
+    }
+    // Update clock if necessary.
+    if (_clockUsesTime) [self updateMenubarIcon];
 }
 
 #pragma mark -
@@ -873,26 +1076,30 @@
 
     // Did the user set a custom clock format string?
     if (format != nil && ![format isEqualToString:@""]) {
-        NSLog(@"Use custom clock format: [%@]", format);
-        _clockUsesSeconds = [self formatContainsSecondsSpecifier:format];
+        [self processFormatForTimeAndSecondsSpecifiers:format];
         _clockFormat = format;
     }
     else {
-        NSLog(@"Use normal icon");
-        [_clockTimer invalidate];
-        _clockTimer = nil;
+        _clockUsesTime = NO;
+        _clockUsesSeconds = NO;
         _clockFormat = nil;
         _statusItem.button.title = @"";
     }
+    [self updateStatusItemFont];
     [self updateMenubarIcon];
+    [self updateTimer];
 }
 
-- (BOOL)formatContainsSecondsSpecifier:(NSString *)format
+- (void)processFormatForTimeAndSecondsSpecifiers:(NSString *)format
 {
-    // The seconds specifier is an s-character. Does format
-    // contain an s that isn't inside a quoted string? A
-    // quoted string is delimited by single-quote chars.
+    // A time specifier is one of the following: a, H, h, K, k, j, m, s.
+    // The seconds specifier is an s-character. Does format contain
+    // a time specifier or s that isn't inside a quoted string? a quoted
+    // string is delimited by single-quote chars.
 
+    NSString *timeSpecifiers = @"aHhKkjms";
+    
+    __block BOOL timeSpecifierFound = NO;
     __block BOOL secondsSpecifierFound = NO;
     __block BOOL insideQuotedString = NO;
 
@@ -907,14 +1114,20 @@
         // Did we find an s that isn't inside a quoted string?
         if (insideQuotedString == NO && [substring isEqualToString:@"s"]) {
             secondsSpecifierFound = YES;
+            timeSpecifierFound = YES;
             *stop = YES;
+        }
+        // Did we find a time specifier that isn't inside a quoted string?
+        else if (insideQuotedString == NO && [timeSpecifiers containsString:substring]) {
+            timeSpecifierFound = YES;
         }
         // Are we inside a quoted string? They are delimited with single-quotes.
         else if ([substring isEqualToString:@"'"]) {
             insideQuotedString = !insideQuotedString;
         }
     }];
-    return secondsSpecifierFound;
+    _clockUsesTime = timeSpecifierFound;
+    _clockUsesSeconds = secondsSpecifierFound;
 }
 
 #pragma mark -
@@ -924,31 +1137,36 @@
 {
     // Day changed notification
     [[NSNotificationCenter defaultCenter] addObserverForName:NSCalendarDayChangedNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
-        MoDate today = [self todayDate];
-        _moCal.todayDate = today;
-        _moCal.selectedDate = today;
+        [self resetCalendarToToday];
         [self updateMenubarIcon];
+        [self updateTimer];
     }];
     
     // Timezone changed notification
     [[NSNotificationCenter defaultCenter] addObserverForName:NSSystemTimeZoneDidChangeNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
         [self updateMenubarIcon];
-        [_ec refetchAll];
+        [self updateTimer];
+        [self->_ec refetchAll];
     }];
     
     // Locale notifications
     [[NSNotificationCenter defaultCenter] addObserverForName:NSCurrentLocaleDidChangeNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
         [self updateMenubarIcon];
+        [self updateTimer];
     }];
     
     // System clock notification
     [[NSNotificationCenter defaultCenter] addObserverForName:NSSystemClockDidChangeNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
         [self updateMenubarIcon];
-        [_ec refetchAll];
+        [self updateTimer];
+        [self->_ec refetchAll];
     }];
 
     // Wake from sleep notification
-    [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self selector:@selector(updateMenubarIcon) name:NSWorkspaceDidWakeNotification object:nil];
+    [[[NSWorkspace sharedWorkspace] notificationCenter] addObserverForName:NSWorkspaceDidWakeNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification * _Nonnull note) {
+        [self updateMenubarIcon];
+        [self updateTimer];
+    }];
 
     // Observe NSUserDefaults for preference changes
     for (NSString *keyPath in @[kShowEventDays, kUseOutlineIcon, kShowMonthInIcon, kShowDayOfWeekInIcon, kHideIcon, kClockFormat]) {

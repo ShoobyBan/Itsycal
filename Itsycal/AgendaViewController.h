@@ -11,12 +11,11 @@
 
 @protocol AgendaDelegate;
 
-@interface AgendaViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, MoTableViewDelegate>
+@interface AgendaViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, MoTableViewDelegate, NSMenuDelegate>
 
 @property (nonatomic, weak) NSCalendar *nsCal;
 @property (nonatomic) MoTableView *tv;
 @property (nonatomic) NSArray *events;
-@property (nonatomic) NSColor *backgroundColor;
 @property (nonatomic, weak) id<AgendaDelegate> delegate;
 @property (nonatomic) BOOL showLocation;
 
@@ -32,5 +31,6 @@
 @optional
 - (void)agendaHoveredOverRow:(NSInteger)row;
 - (void)agendaWantsToDeleteEvent:(EKEvent *)event;
+- (CGFloat)agendaMaxPossibleHeight;
 
 @end

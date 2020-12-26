@@ -38,10 +38,19 @@
 "10 minutes before" = "10 minutes avant";
 
 /* No comment provided by engineer. */
+"14 days" = "14 jours";
+
+/* No comment provided by engineer. */
 "15 minutes before" = "15 minutes avant";
 
 /* No comment provided by engineer. */
 "30 minutes before" = "30 minutes avant";
+
+/* No comment provided by engineer. */
+"31 days" = "31 jours";
+
+/* No comment provided by engineer. */
+"About Itsycal" = "À propos de Itsycal";
 
 /* About prefs tab label */
 "About" = "À propos";
@@ -68,6 +77,9 @@
 "Automatically check for updates" = "Rechercher automatiquement le mises à jour";
 
 /* No comment provided by engineer. */
+"Calendar" = "Calendrier";
+
+/* No comment provided by engineer. */
 "Calendar access denied.
 
 Itsycal is more useful when it can display events from your calendars. You can change this setting in System Preferences › Security & Privacy › Privacy" = "L'accès au calendrier est refusée.
@@ -81,13 +93,22 @@ Itsycal est plus utile quand il peut afficher les événements de vos calendrier
 "Cancel" = "Annuler";
 
 /* No comment provided by engineer. */
-"Check for Updates..." = "Rechercher les mises à jour…";
+"Check for Updates…" = "Rechercher les mises à jour…";
+
+/* No comment provided by engineer. */
+"Copy" = "Copier";
 
 /* Dark theme name */
 "Dark" = "Thème Sombre";
 
 /* No comment provided by engineer. */
+"Date & Time…" = "Date et heure…";
+
+/* No comment provided by engineer. */
 "Datetime pattern" = "Modèle de date et d'heure";
+
+/* No comment provided by engineer. */
+"Delete" = "Supprimer";
 
 /* No comment provided by engineer. */
 "Delete All Future Events" = "Supprimer tous les événements futurs";
@@ -102,6 +123,9 @@ Itsycal est plus utile quand il peut afficher les événements de vos calendrier
 "Do you want to delete this and all future occurrences of this event, or only the selected occurrence?" = "Souhaitez-vous supprimer cet événement ainsi que toutes ses occurrences futures ou uniquement celle sélectionnée?";
 
 /* No comment provided by engineer. */
+"Donate with" = "Faire un don avec";
+
+/* No comment provided by engineer. */
 "End Repeat:" = "Fin de la récurrence:";
 
 /* No comment provided by engineer. */
@@ -111,7 +135,16 @@ Itsycal est plus utile quand il peut afficher les événements de vos calendrier
 "Event list shows:" = "La liste des événements affiche:";
 
 /* No comment provided by engineer. */
-"Every 2 Weeks" = "toutes les deux semaines";
+"Every %zd Days" = "tous les %zd jours";
+
+/* No comment provided by engineer. */
+"Every %zd Months" = "tous les %zd mois";
+
+/* No comment provided by engineer. */
+"Every %zd Weeks" = "toutes les %zd semaines";
+
+/* No comment provided by engineer. */
+"Every %zd Years" = "tous les %zd ans";
 
 /* No comment provided by engineer. */
 "Every Day" = "tous les jours";
@@ -129,13 +162,19 @@ Itsycal est plus utile quand il peut afficher les événements de vos calendrier
 "First day of week:" = "Premier jour de la semaine:";
 
 /* No comment provided by engineer. */
+"Follow" = "Suivez";
+
+/* No comment provided by engineer. */
 "Friday" = "vendredi";
 
 /* General prefs tab label */
 "General" = "Général";
 
 /* No comment provided by engineer. */
-"Hide icon" = "Masquer l'icône de la barre des menus";
+"Help…" = "Aide…";
+
+/* No comment provided by engineer. */
+"Hide icon" = "Masquer l'icône";
 
 /* No comment provided by engineer. */
 "Highlight:" = "Mettre en évidence:";
@@ -163,6 +202,9 @@ S'il vous plaît quitter Itsycal, le déplacer dans le dossier Applications, et 
 "Light" = "Thème Clair";
 
 /* No comment provided by engineer. */
+"Menu Bar" = "Barre de Menus";
+
+/* No comment provided by engineer. */
 "Monday" = "lundi";
 
 /* No comment provided by engineer. */
@@ -175,7 +217,7 @@ S'il vous plaît quitter Itsycal, le déplacer dans le dossier Applications, et 
 "New Event" = "Nouvel événement";
 
 /* No comment provided by engineer. */
-"New Event... ⌘N" = "Nouvel événement… ⌘N";
+"New Event… ⌘N" = "Nouvel événement… ⌘N";
 
 /* No comment provided by engineer. */
 "No events" = "aucun événement";
@@ -188,16 +230,19 @@ S'il vous plaît quitter Itsycal, le déplacer dans le dossier Applications, et 
 "On Date" = "le";
 
 /* No comment provided by engineer. */
-"Open Calendar... ⌘O" = "Ouvrir l'application Calendrier… ⌘O";
+"Open Calendar… ⌘O" = "Ouvrir l'application Calendrier… ⌘O";
 
 /* No comment provided by engineer. */
 "Options" = "Options";
 
 /* No comment provided by engineer. */
-"Pin Itsycal... P" = "Maintenir Itsycal visible… P";
+"or" = "ou";
 
 /* No comment provided by engineer. */
-"Preferences..." = "Préférences…";
+"Pin Itsycal… P" = "Maintenir Itsycal visible… P";
+
+/* No comment provided by engineer. */
+"Preferences…" = "Préférences…";
 
 /* No comment provided by engineer. */
 "Quit Itsycal" = "Quitter Itsycal";
@@ -215,19 +260,25 @@ S'il vous plaît quitter Itsycal, le déplacer dans le dossier Applications, et 
 "Show calendar weeks" = "Afficher les numéros de semaine";
 
 /* No comment provided by engineer. */
-"Show day of week in icon" = "L'icône de la barre des menus affiche le jour de la semaine";
+"Show day of week in icon" = "L'icône affiche le jour de la semaine";
+
+/* No comment provided by engineer. */
+"Show event dots" = "Afficher les indicateurs d'évènements";
 
 /* No comment provided by engineer. */
 "Show event location" = "Afficher l'emplacement de l'événement";
 
 /* No comment provided by engineer. */
-"Show month in icon" = "L'icône de la barre des menus affiche le mois";
+"Show month in icon" = "L'icône affiche le mois";
 
 /* No comment provided by engineer. */
 "Starts:" = "Commence:";
 
 /* No comment provided by engineer. */
 "Sunday" = "dimanche";
+
+/* System theme name */
+"System" = "Système";
 
 /* Alert box message when we fail to launch the Calendar application */
 "The Calendar application could not be found." = "L'application Calendrier est introuvable.";
@@ -245,7 +296,10 @@ S'il vous plaît quitter Itsycal, le déplacer dans le dossier Applications, et 
 "Tuesday" = "mardi";
 
 /* No comment provided by engineer. */
-"Use outline icon" = "Utiliser l'icône de la barre des menus de contour";
+"Use colored dots" = "Utiliser des indicateurs colorés";
+
+/* No comment provided by engineer. */
+"Use outline icon" = "Utiliser l’icône avec contour";
 
 /* No comment provided by engineer. */
 "Wednesday" = "mercredi";

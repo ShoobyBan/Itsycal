@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		921181C722E0192A00591FDA /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 921181C622E0192A00591FDA /* Colors.xcassets */; };
 		9215AD4C1E3AECA700317FAE /* MoVFLHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 9215AD4B1E3AECA700317FAE /* MoVFLHelper.m */; };
 		921E62CD1E26B3EA007B029F /* PrefsGeneralVC.m in Sources */ = {isa = PBXBuildFile; fileRef = 921E62C11E26B3EA007B029F /* PrefsGeneralVC.m */; };
 		921E62D01E26B9D2007B029F /* PrefsAppearanceVC.m in Sources */ = {isa = PBXBuildFile; fileRef = 921E62CF1E26B9D2007B029F /* PrefsAppearanceVC.m */; };
@@ -42,7 +43,7 @@
 		926A6D8F1E3EC89100AAA991 /* PrefsVC.m in Sources */ = {isa = PBXBuildFile; fileRef = 926A6D8E1E3EC89100AAA991 /* PrefsVC.m */; };
 		9278CADB1A990462004B6BB9 /* MoTableView.m in Sources */ = {isa = PBXBuildFile; fileRef = 9278CADA1A990462004B6BB9 /* MoTableView.m */; };
 		929223EB1E2D6E0900F1A119 /* HighlightPicker.m in Sources */ = {isa = PBXBuildFile; fileRef = 929223EA1E2D6E0800F1A119 /* HighlightPicker.m */; };
-		92B3C0431AA7EF43008A5C05 /* MoView.m in Sources */ = {isa = PBXBuildFile; fileRef = 92B3C0421AA7EF43008A5C05 /* MoView.m */; };
+		92B28CCF210BD17500485AE2 /* Sizer.m in Sources */ = {isa = PBXBuildFile; fileRef = 92B28CCE210BD17500485AE2 /* Sizer.m */; };
 		92CDDE7B1A955D7F00D7675C /* AgendaViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 92CDDE7A1A955D7F00D7675C /* AgendaViewController.m */; };
 /* End PBXBuildFile section */
 
@@ -65,8 +66,10 @@
 		6F21F6F31F0CDA7D00F443BE /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/MainMenu.strings"; sourceTree = "<group>"; };
 		6F21F6F41F0CDA7D00F443BE /* zh-Hans */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		6F21F6F51F0CDA7D00F443BE /* zh-Hans */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		921181C622E0192A00591FDA /* Colors.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Colors.xcassets; sourceTree = "<group>"; };
 		9215AD4A1E3AECA700317FAE /* MoVFLHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MoVFLHelper.h; sourceTree = "<group>"; };
 		9215AD4B1E3AECA700317FAE /* MoVFLHelper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MoVFLHelper.m; sourceTree = "<group>"; };
+		921949F3225D283E00223258 /* Itsycal.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Itsycal.entitlements; sourceTree = "<group>"; };
 		921E62C01E26B3EA007B029F /* PrefsGeneralVC.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PrefsGeneralVC.h; sourceTree = "<group>"; };
 		921E62C11E26B3EA007B029F /* PrefsGeneralVC.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PrefsGeneralVC.m; sourceTree = "<group>"; };
 		921E62CE1E26B9D2007B029F /* PrefsAppearanceVC.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PrefsAppearanceVC.h; sourceTree = "<group>"; };
@@ -135,8 +138,8 @@
 		9278CADA1A990462004B6BB9 /* MoTableView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MoTableView.m; sourceTree = "<group>"; };
 		929223E91E2D6E0800F1A119 /* HighlightPicker.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HighlightPicker.h; sourceTree = "<group>"; };
 		929223EA1E2D6E0800F1A119 /* HighlightPicker.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HighlightPicker.m; sourceTree = "<group>"; };
-		92B3C0411AA7EF43008A5C05 /* MoView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MoView.h; sourceTree = "<group>"; };
-		92B3C0421AA7EF43008A5C05 /* MoView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MoView.m; sourceTree = "<group>"; };
+		92B28CCD210BD17500485AE2 /* Sizer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sizer.h; sourceTree = "<group>"; };
+		92B28CCE210BD17500485AE2 /* Sizer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Sizer.m; sourceTree = "<group>"; };
 		92CDDE791A955D7F00D7675C /* AgendaViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AgendaViewController.h; sourceTree = "<group>"; };
 		92CDDE7A1A955D7F00D7675C /* AgendaViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AgendaViewController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -155,6 +158,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		9228A5A5210509910076BFFC /* Prefs */ = {
+			isa = PBXGroup;
+			children = (
+				926A6D8D1E3EC89100AAA991 /* PrefsVC.h */,
+				926A6D8E1E3EC89100AAA991 /* PrefsVC.m */,
+				921E62C01E26B3EA007B029F /* PrefsGeneralVC.h */,
+				921E62C11E26B3EA007B029F /* PrefsGeneralVC.m */,
+				921E62CE1E26B9D2007B029F /* PrefsAppearanceVC.h */,
+				921E62CF1E26B9D2007B029F /* PrefsAppearanceVC.m */,
+				921E62D11E26E038007B029F /* PrefsAboutVC.h */,
+				921E62D21E26E038007B029F /* PrefsAboutVC.m */,
+			);
+			name = Prefs;
+			sourceTree = "<group>";
+		};
 		923E78DB1D385CD80012979B /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -184,9 +202,11 @@
 		9242A55E1A82A136005AA4B3 /* Itsycal */ = {
 			isa = PBXGroup;
 			children = (
+				921949F3225D283E00223258 /* Itsycal.entitlements */,
 				923E78DB1D385CD80012979B /* Frameworks */,
 				9242A55F1A82A136005AA4B3 /* Supporting Files */,
 				9242A5661A82A136005AA4B3 /* Images.xcassets */,
+				921181C622E0192A00591FDA /* Colors.xcassets */,
 				9242A5681A82A136005AA4B3 /* MainMenu.xib */,
 				922B6B911A856A7D00DEA9CD /* SBCalendar.h */,
 				9242A5611A82A136005AA4B3 /* AppDelegate.h */,
@@ -200,14 +220,7 @@
 				9242A5851A82A1A1005AA4B3 /* ItsycalWindow.h */,
 				9242A5861A82A1A1005AA4B3 /* ItsycalWindow.m */,
 				92CDDE7C1A97FFE700D7675C /* MoCode */,
-				926A6D8D1E3EC89100AAA991 /* PrefsVC.h */,
-				926A6D8E1E3EC89100AAA991 /* PrefsVC.m */,
-				921E62C01E26B3EA007B029F /* PrefsGeneralVC.h */,
-				921E62C11E26B3EA007B029F /* PrefsGeneralVC.m */,
-				921E62CE1E26B9D2007B029F /* PrefsAppearanceVC.h */,
-				921E62CF1E26B9D2007B029F /* PrefsAppearanceVC.m */,
-				921E62D11E26E038007B029F /* PrefsAboutVC.h */,
-				921E62D21E26E038007B029F /* PrefsAboutVC.m */,
+				9228A5A5210509910076BFFC /* Prefs */,
 				929223E91E2D6E0800F1A119 /* HighlightPicker.h */,
 				929223EA1E2D6E0800F1A119 /* HighlightPicker.m */,
 				922232CB1A8DF672003BFAD9 /* EventCenter.h */,
@@ -220,6 +233,8 @@
 				92658E611A9DBD8E002AE86C /* EventViewController.m */,
 				9261EB2E1EEF447500DCFFC4 /* Themer.h */,
 				9261EB2F1EEF447500DCFFC4 /* Themer.m */,
+				92B28CCD210BD17500485AE2 /* Sizer.h */,
+				92B28CCE210BD17500485AE2 /* Sizer.m */,
 			);
 			path = Itsycal;
 			sourceTree = "<group>";
@@ -265,8 +280,6 @@
 				9224B0741A8BE75500D63030 /* MoButton.m */,
 				9278CAD91A990462004B6BB9 /* MoTableView.h */,
 				9278CADA1A990462004B6BB9 /* MoTableView.m */,
-				92B3C0411AA7EF43008A5C05 /* MoView.h */,
-				92B3C0421AA7EF43008A5C05 /* MoView.m */,
 				9215AD4A1E3AECA700317FAE /* MoVFLHelper.h */,
 				9215AD4B1E3AECA700317FAE /* MoVFLHelper.m */,
 			);
@@ -284,6 +297,7 @@
 				9242A5591A82A136005AA4B3 /* Frameworks */,
 				9242A55A1A82A136005AA4B3 /* Resources */,
 				9252DF361AFD3557007B079F /* CopyFiles */,
+				921949F4225D287F00223258 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -300,19 +314,24 @@
 		9242A5541A82A136005AA4B3 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0810;
+				LastUpgradeCheck = 1020;
 				ORGANIZATIONNAME = mowglii.com;
 				TargetAttributes = {
 					9242A55B1A82A136005AA4B3 = {
 						CreatedOnToolsVersion = 6.1.1;
 						DevelopmentTeam = HFT3T55WND;
 						ProvisioningStyle = Manual;
+						SystemCapabilities = {
+							com.apple.HardenedRuntime = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
 			buildConfigurationList = 9242A5571A82A136005AA4B3 /* Build configuration list for PBXProject "Itsycal" */;
 			compatibilityVersion = "Xcode 3.2";
-			developmentRegion = English;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
@@ -338,6 +357,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				921181C722E0192A00591FDA /* Colors.xcassets in Resources */,
 				9242A5671A82A136005AA4B3 /* Images.xcassets in Resources */,
 				922B6BC41A87EDBE00DEA9CD /* InfoPlist.strings in Resources */,
 				922B6BBE1A87EDBD00DEA9CD /* Localizable.strings in Resources */,
@@ -346,6 +366,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		921949F4225D287F00223258 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# For notarization we need to deep codesign Sparkle.\n# github.com/sparkle-project/Sparkle/issues/1266#issuecomment-421182578\nLOCATION=\"${BUILT_PRODUCTS_DIR}\"/\"${FRAMEWORKS_FOLDER_PATH}\"\nIDENTITY=\"${CODE_SIGN_IDENTITY}\"\ncodesign --verbose --force --deep -o runtime --sign \"$IDENTITY\" \"$LOCATION/Sparkle.framework/Versions/A/Resources/AutoUpdate.app\"\ncodesign --verbose --force -o runtime --sign \"$IDENTITY\" \"$LOCATION/Sparkle.framework/Versions/A\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		9242A5581A82A136005AA4B3 /* Sources */ = {
@@ -358,6 +398,7 @@
 				926A6D8F1E3EC89100AAA991 /* PrefsVC.m in Sources */,
 				922D9B261DC7A1CA0050AB2F /* MoUtils.m in Sources */,
 				9242A5651A82A136005AA4B3 /* main.m in Sources */,
+				92B28CCF210BD17500485AE2 /* Sizer.m in Sources */,
 				9278CADB1A990462004B6BB9 /* MoTableView.m in Sources */,
 				929223EB1E2D6E0900F1A119 /* HighlightPicker.m in Sources */,
 				925B47181A93B63100E0329A /* MoCalToolTipWC.m in Sources */,
@@ -373,7 +414,6 @@
 				9242A5931A82A40B005AA4B3 /* MoCalendar.m in Sources */,
 				9242A5911A82A40B005AA4B3 /* MoCalCell.m in Sources */,
 				9224B0751A8BE75500D63030 /* MoButton.m in Sources */,
-				92B3C0431AA7EF43008A5C05 /* MoView.m in Sources */,
 				9242A5841A82A189005AA4B3 /* ViewController.m in Sources */,
 				924C518C1E5F721C0049E3A9 /* MoCalResizeHandle.m in Sources */,
 				921E62CD1E26B3EA007B029F /* PrefsGeneralVC.m in Sources */,
@@ -434,14 +474,22 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -464,7 +512,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
@@ -480,14 +528,22 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -504,7 +560,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
 			};
@@ -514,9 +570,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Itsycal/Itsycal.entitlements;
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = HFT3T55WND;
+				ENABLE_HARDENED_RUNTIME = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Itsycal/_frameworks",
@@ -533,10 +591,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Itsycal/Itsycal.entitlements;
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
 				DEVELOPMENT_TEAM = HFT3T55WND;
+				ENABLE_HARDENED_RUNTIME = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Itsycal/_frameworks",

@@ -8,36 +8,56 @@
 
 #import "MoCalCell.h"
 #import "Themer.h"
+#import "Sizer.h"
 
 @implementation MoCalCell
+{
+    NSLayoutConstraint *_textFieldVerticalSpace;
+}
 
 - (instancetype)init
 {
-    self = [super initWithFrame:NSMakeRect(0, 0, kMoCalCellWidth, kMoCalCellHeight)];
+    CGFloat sz = SizePref.cellSize;
+    self = [super initWithFrame:NSMakeRect(0, 0, sz, sz)];
     if (self) {
-        _textField = [[NSTextField alloc] initWithFrame:NSZeroRect];
-        [_textField setFont:[NSFont systemFontOfSize:11 weight:NSFontWeightMedium]];
+        _textField = [NSTextField labelWithString:@""];
+        [_textField setFont:[NSFont systemFontOfSize:SizePref.fontSize weight:NSFontWeightMedium]];
         [_textField setTextColor:[NSColor blackColor]];
-        [_textField setBezeled:NO];
-        [_textField setEditable:NO];
         [_textField setAlignment:NSTextAlignmentCenter];
-        [_textField setDrawsBackground:NO];
         [_textField setTranslatesAutoresizingMaskIntoConstraints:NO];
 
         [self addSubview:_textField];
 
         [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[_textField]|" options:0 metrics:nil views:NSDictionaryOfVariableBindings(_textField)]];
-        [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-2-[_textField]" options:0 metrics:nil views:NSDictionaryOfVariableBindings(_textField)]];
+        
+        _textFieldVerticalSpace = [NSLayoutConstraint constraintWithItem:_textField attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:self attribute:NSLayoutAttributeTop multiplier:1 constant:SizePref.cellTextFieldVerticalSpace];
+        [self addConstraint:_textFieldVerticalSpace];
+
+        
+        REGISTER_FOR_SIZE_CHANGE;
     }
     return self;
 }
 
-- (void)setIsToday:(BOOL)isToday
+- (void)sizeChanged:(id)sender
 {
-    if (isToday != _isToday) {
-        _isToday = isToday;
-        [self setNeedsDisplay:YES];
-    }
+    [_textField setFont:[NSFont systemFontOfSize:SizePref.fontSize weight:NSFontWeightMedium]];
+    _textFieldVerticalSpace.constant = SizePref.cellTextFieldVerticalSpace;
+}
+
+- (void)setIsToday:(BOOL)isToday {
+    _isToday = isToday;
+    [self setNeedsDisplay:YES];
+}
+
+- (void)setIsHighlighted:(BOOL)isHighlighted {
+    _isHighlighted = isHighlighted;
+    [self updateTextColor];
+}
+
+- (void)setIsInCurrentMonth:(BOOL)isInCurrentMonth {
+    _isInCurrentMonth = isInCurrentMonth;
+    [self updateTextColor];
 }
 
 - (void)setIsSelected:(BOOL)isSelected
@@ -56,41 +76,78 @@
     }
 }
 
-- (void)setHasDot:(BOOL)hasDot
+- (void)setDotColors:(NSArray<NSColor *> *)dotColors
 {
-    if (hasDot != _hasDot) {
-        _hasDot = hasDot;
-        [self setNeedsDisplay:YES];
-    }
+    _dotColors = dotColors;
+    [self setNeedsDisplay:YES];
+}
+
+- (void)updateTextColor {
+    self.textField.textColor = self.isInCurrentMonth ? Theme.currentMonthTextColor : Theme.noncurrentMonthTextColor;
 }
 
 - (void)drawRect:(NSRect)dirtyRect
 {
+    CGFloat radius = SizePref.cellRadius;
     if (self.isToday) {
-        [[[Themer shared] todayCellColor] set];
+        [Theme.todayCellColor set];
         NSRect r = NSInsetRect(self.bounds, 3, 3);
-        NSBezierPath *p = [NSBezierPath bezierPathWithRoundedRect:r xRadius:3 yRadius:3];
+        NSBezierPath *p = [NSBezierPath bezierPathWithRoundedRect:r xRadius:radius yRadius:radius];
         [p setLineWidth:2];
         [p stroke];
     }
     else if (self.isSelected) {
-        [[[Themer shared] selectedCellColor] set];
-        NSRect r = NSInsetRect(self.bounds, 2.5, 2.5);
-        [[NSBezierPath bezierPathWithRoundedRect:r xRadius:3 yRadius:3] stroke];
+        [Theme.selectedCellColor set];
+        NSRect r = NSInsetRect(self.bounds, 3, 3);
+        NSBezierPath *p = [NSBezierPath bezierPathWithRoundedRect:r xRadius:radius yRadius:radius];
+        [p setLineWidth:2];
+        [p stroke];
     }
     else if (self.isHovered) {
-        [[[Themer shared] hoveredCellColor] set];
-        NSRect r = NSInsetRect(self.bounds, 2.5, 2.5);
-        [[NSBezierPath bezierPathWithRoundedRect:r xRadius:3 yRadius:3] stroke];
-        [[[[Themer shared] hoveredCellColor] colorWithAlphaComponent:0.07] set];
-        [[NSBezierPath bezierPathWithRoundedRect:r xRadius:3 yRadius:3] fill];
+        [Theme.hoveredCellColor set];
+        NSRect r = NSInsetRect(self.bounds, 3, 3);
+        NSBezierPath *p = [NSBezierPath bezierPathWithRoundedRect:r xRadius:radius yRadius:radius];
+        [p setLineWidth:2];
+        [p stroke];
     }
-    if (self.hasDot) {
-        [self.textField.textColor set];
-        NSRect r = NSMakeRect(0, 0, 3, 3);
-        r.origin.x = self.bounds.origin.x + kMoCalCellWidth/2.0 - 1.5;
-        r.origin.y = self.bounds.origin.y + 5;
-        [[NSBezierPath bezierPathWithOvalInRect:r] fill];
+    if (self.dotColors) {
+        CGFloat sz = SizePref.cellSize;
+        CGFloat dotWidth = SizePref.cellDotWidth;
+        CGFloat dotSpacing = 1.5*dotWidth;
+        NSRect r = NSMakeRect(0, 0, dotWidth, dotWidth);
+        r.origin.y = self.bounds.origin.y + dotWidth + 2;
+        if (self.dotColors.count == 0) {
+            [self.textField.textColor set];
+            r.origin.x = self.bounds.origin.x + sz/2.0 - dotWidth/2.0;
+            [[NSBezierPath bezierPathWithOvalInRect:r] fill];
+        }
+        else if (self.dotColors.count == 1) {
+            [self.dotColors[0] set];
+            r.origin.x = self.bounds.origin.x + sz/2.0 - dotWidth/2.0;
+            [[NSBezierPath bezierPathWithOvalInRect:r] fill];
+        }
+        else if (self.dotColors.count == 2) {
+            [self.dotColors[0] set];
+            r.origin.x = self.bounds.origin.x + sz/2.0 - dotSpacing/2 - dotWidth/2.0;
+            [[NSBezierPath bezierPathWithOvalInRect:r] fill];
+            
+            [self.dotColors[1] set];
+            r.origin.x = self.bounds.origin.x + sz/2.0 + dotSpacing/2 - dotWidth/2.0;
+            [[NSBezierPath bezierPathWithOvalInRect:r] fill];
+        }
+        else if (self.dotColors.count == 3) {
+            [self.dotColors[0] set];
+            r.origin.x = self.bounds.origin.x + sz/2.0 - dotSpacing - dotWidth/2.0;
+            [[NSBezierPath bezierPathWithOvalInRect:r] fill];
+            
+            [self.dotColors[1] set];
+            r.origin.x = self.bounds.origin.x + sz/2.0 - dotWidth/2.0;
+            [[NSBezierPath bezierPathWithOvalInRect:r] fill];
+            
+            [self.dotColors[2] set];
+            r.origin.x = self.bounds.origin.x + sz/2.0 + dotSpacing - dotWidth/2.0;
+            [[NSBezierPath bezierPathWithOvalInRect:r] fill];
+        }
     }
 }
 

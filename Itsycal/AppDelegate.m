@@ -11,8 +11,10 @@
 #import "ItsycalWindow.h"
 #import "ViewController.h"
 #import "Themer.h"
+#import "Sizer.h"
 #import "MASShortcut/MASShortcutBinder.h"
 #import "MASShortcut/MASShortcutMonitor.h"
+#import "MoUtils.h"
 
 @implementation AppDelegate
 {
@@ -21,21 +23,35 @@
 
 + (void)initialize
 {
+    // Get the default firstWeekday for user's locale.
+    // User can change this in preferences.
+    NSCalendar *cal = [NSCalendar autoupdatingCurrentCalendar];
+    NSInteger weekStartDOW = MIN(MAX(cal.firstWeekday - 1, 0), 6);
+    
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     [defaults registerDefaults:@{
         kPinItsycal:           @(NO),
         kShowWeeks:            @(NO),
         kHighlightedDOWs:      @0,
         kShowEventDays:        @7,
-        kWeekStartDOW:         @0, // Sun=0, Mon=1,... (MoCalendar.h)
+        kWeekStartDOW:         @(weekStartDOW), // Sun=0, Mon=1,... (MoCalendar.h)
         kShowMonthInIcon:      @(NO),
         kShowDayOfWeekInIcon:  @(NO),
+        kShowEventDots:        @(YES),
+        kUseColoredDots:       @(YES),
+        kThemePreference:      @0, // System=0, Light=1, Dark=2
         kHideIcon:             @(NO)
     }];
     
-    // Constrain kShowEventDays to values 0...7 in (unlikely) case it is invalid.
-    NSInteger validDays = MIN(MAX([defaults integerForKey:kShowEventDays], 0), 7);
+    // Constrain kShowEventDays to values 0...9 in (unlikely) case it is invalid.
+    NSInteger validDays = MIN(MAX([defaults integerForKey:kShowEventDays], 0), 9);
     [defaults setInteger:validDays forKey:kShowEventDays];
+    
+    // Set kThemePreference to defaultThemePref in the unlikely case it's invalid.
+    NSInteger themePref = [defaults integerForKey:kThemePreference];
+    if (themePref < 0 || themePref > 2) {
+        [defaults setInteger:0 forKey:kThemePreference];
+    }
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
@@ -48,20 +64,41 @@
     [self checkIfRunFromApplicationsFolder];
 #endif
 
+    // Initialize the 'Theme' global variable which can be
+    // used throught the app instead of '[Themer shared]'.
+    [Themer shared];
+
+    // Initialize the 'SizePref' global variable which can be
+    // used throught the app instead of '[Sizer shared]'.
+    [Sizer shared];
+
     // 0.11.1 introduced a new way to highlight columns in the calendar.
     [self weekendHighlightFixup];
+    
+    // 0.11.11 uses a new theme preference scheme that enables following
+    // the system's appearance.
+    [self themeFixup];
 
     // Register keyboard shortcut.
     [[MASShortcutBinder sharedBinder] bindShortcutWithDefaultsKey:kKeyboardShortcut toAction:^{
-         [(ViewController *)_wc.contentViewController keyboardShortcutActivated];
+         [(ViewController *)self->_wc.contentViewController keyboardShortcutActivated];
      }];
-    
-    [[Themer shared] bind:@"themeIndex" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kThemeIndex] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+
+    // Establish the binding to NSUserDefaultsController. This call
+    // must be made BEFORE the window is created because sizes are
+    // used when initializing views.
+    [SizePref bind:@"sizePreference" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kSizePreference] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
 
     ViewController *vc = [ViewController new];
     _wc = [[NSWindowController alloc] initWithWindow:[ItsycalWindow  new]];
     _wc.contentViewController = vc;
     _wc.window.delegate = vc;
+    
+    // Establish the binding to NSUserDefaultsController. On macOS
+    // 10.14+, it is crucial for this call to be made AFTER the window
+    // is created because Theme instantiation relies on checking a
+    // property on the window to determine its appearance.
+    [Theme bind:@"themePreference" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kThemePreference] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification
@@ -136,6 +173,14 @@
     [defaults removeObjectForKey:@"HighlightWeekend"];
     [defaults removeObjectForKey:@"WeekendIsFridaySaturday"];
     [defaults removeObjectForKey:@"WeekendIsSaturdaySunday"];
+}
+
+// Itsycal 0.11.11 uses ThemePreference instead of ThemeIndex to
+// express the user's theme preference. ThemePreference can be
+// System in addition to explicitly Light or Dark.
+- (void)themeFixup
+{
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"ThemeIndex"];
 }
 
 @end

@@ -22,3 +22,5 @@ NSString * const kAllowOutsideApplicationsFolder = @"AllowOutsideApplicationsFol
 NSString * const kClockFormat = @"ClockFormat";
 NSString * const kHideIcon = @"HideIcon";
 NSString * const kShowLocation = @"ShowLocation";
+NSString * const kShowEventDots = @"kShowEventDots";
+NSString * const kUseColoredDots = @"UseColoredDots";

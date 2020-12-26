@@ -11,9 +11,9 @@
 
 static const CGFloat kMinimumSpaceBetweenWindowAndScreenEdge = 10;
 static const CGFloat kArrowHeight  = 8;
-static const CGFloat kCornerRadius = 8;
+static const CGFloat kCornerRadius = 10;
 static const CGFloat kBorderWidth  = 1;
-static const CGFloat kMarginWidth  = 2;
+static const CGFloat kMarginWidth  = 0;
 static const CGFloat kWindowTopMargin    = kCornerRadius + kBorderWidth + kArrowHeight;
 static const CGFloat kWindowSideMargin   = kMarginWidth  + kBorderWidth;
 static const CGFloat kWindowBottomMargin = kCornerRadius + kBorderWidth;
@@ -45,8 +45,6 @@ static const CGFloat kWindowBottomMargin = kCornerRadius + kBorderWidth;
         [self setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace];
         // Fade out when -[NSWindow orderOut:] is called.
         [self setAnimationBehavior:NSWindowAnimationBehaviorUtilityWindow];
-        
-        REGISTER_FOR_THEME_CHANGE;
     }
     return self;
 }
@@ -145,11 +143,6 @@ static const CGFloat kWindowBottomMargin = kCornerRadius + kBorderWidth;
     [self invalidateShadow];
 }
 
-- (void)themeChanged:(id)sender
-{
-    [[super contentView] setNeedsDisplay:YES];
-}
-
 @end
 
 #pragma mark -
@@ -166,14 +159,25 @@ static const CGFloat kWindowBottomMargin = kCornerRadius + kBorderWidth;
     // Draw the window background with the little arrow
     // at the top.
     
+    // The rectangular part of frame view must be inset and
+    // shortened to make room for the border and arrow.
+    NSRect rect = NSInsetRect(self.bounds, kBorderWidth, kBorderWidth);
+    rect.size.height -= kArrowHeight;
+    
+    // Do we need to draw the whole window?
+    // If dirtyRect is inside the body of the window, we can just fill it.
+    NSRect bodyRect = NSInsetRect(rect, 1, kCornerRadius);
+    if (NSContainsRect(bodyRect, dirtyRect)) {
+        [Theme.mainBackgroundColor setFill];
+        NSRectFill(dirtyRect);
+        return;
+    }
+    
+    // We need to draw the whole window.
+
     [[NSColor clearColor] set];
     NSRectFill(self.bounds);
     
-    // The rectangular part of frame view must be inset and
-    // offset to make room for the arrow and border.
-    NSRect rect = NSInsetRect(self.bounds, kBorderWidth, 0);
-    rect.origin.y = kBorderWidth;
-    rect.size.height -= (kArrowHeight + 2*kBorderWidth);
     NSBezierPath *rectPath = [NSBezierPath bezierPathWithRoundedRect:rect xRadius:kCornerRadius yRadius:kCornerRadius];
     
     // Append the arrow to the body if its right ege is inside
@@ -194,11 +198,10 @@ static const CGFloat kWindowBottomMargin = kCornerRadius + kBorderWidth;
         [arrowPath relativeCurveToPoint:NSMakePoint(kArrowHeight + curveOffset, -kArrowHeight) controlPoint1:NSMakePoint(curveOffset, 0) controlPoint2:NSMakePoint(kArrowHeight, -kArrowHeight)];
         [rectPath appendBezierPath:arrowPath];
     }
-    
-    [[[Themer shared] windowBorderColor] setStroke];
-    [[[Themer shared] mainBackgroundColor] setFill];
+    [Theme.windowBorderColor setStroke];
     [rectPath setLineWidth:2*kBorderWidth];
     [rectPath stroke];
+    [Theme.mainBackgroundColor setFill];
     [rectPath fill];
 }
 

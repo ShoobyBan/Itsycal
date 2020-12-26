@@ -8,8 +8,7 @@
 
 #import "MoCalToolTipWC.h"
 #import "Themer.h"
-
-static CGFloat kToolipWindowWidth = 200;
+#import "Sizer.h"
 
 // Implementation at bottom.
 @interface MoCalTooltipWindow : NSWindow @end
@@ -38,10 +37,15 @@ static CGFloat kToolipWindowWidth = 200;
 {
     _positioningRect = rect;
     _screenFrame = screenFrame;
+    BOOL dateHasEvent = NO;
     if (self.vc) {
-        [self.vc toolTipForDate:date];
+        dateHasEvent = [self.vc toolTipForDate:date];
     }
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(showTooltip) object:nil];
+    if (!dateHasEvent) {
+        [self hideTooltip];
+        return;
+    }
     if (self.window.occlusionState & NSWindowOcclusionStateVisible) {
         // Switching from one tooltip to another
         [_fadeTimer invalidate];
@@ -111,6 +115,9 @@ static CGFloat kToolipWindowWidth = 200;
 // =========================================================================
 
 @implementation MoCalTooltipWindow
+{
+    NSLayoutConstraint *_tooltipWidthConstraint;
+}
 
 - (instancetype)init
 {
@@ -125,16 +132,17 @@ static CGFloat kToolipWindowWidth = 200;
 
         // Draw tooltip background and fix tooltip width.
         self.contentView = [MoCalTooltipContentView new];
-        [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.contentView attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1 constant:kToolipWindowWidth]];
+        _tooltipWidthConstraint = [self.contentView.widthAnchor constraintEqualToConstant:SizePref.tooltipWidth];
+        _tooltipWidthConstraint.active = YES;
         
-        REGISTER_FOR_THEME_CHANGE;
+        REGISTER_FOR_SIZE_CHANGE;
     }
     return self;
 }
 
-- (void)themeChanged:(id)sender
+- (void)sizeChanged:(id)sender
 {
-    [[super contentView] setNeedsDisplay:YES];
+    _tooltipWidthConstraint.constant = SizePref.tooltipWidth;
 }
 
 @end
@@ -149,11 +157,12 @@ static CGFloat kToolipWindowWidth = 200;
 {
     // A rounded rect with a light gray border.
     NSRect r = NSInsetRect(self.bounds, 1, 1);
-    NSBezierPath *p = [NSBezierPath bezierPathWithRoundedRect:r xRadius:4 yRadius:4];
-    [[[Themer shared] windowBorderColor] setStroke];
-    [[[Themer shared] tooltipBackgroundColor] setFill];
-    [p setLineWidth: 2];
-    [p stroke];[p fill];
+    NSBezierPath *p = [NSBezierPath bezierPathWithRoundedRect:r xRadius:5 yRadius:5];
+    [Theme.windowBorderColor setStroke];
+    [p setLineWidth:2];
+    [p stroke];
+    [Theme.tooltipBackgroundColor setFill];
+    [p fill];
 }
 
 @end

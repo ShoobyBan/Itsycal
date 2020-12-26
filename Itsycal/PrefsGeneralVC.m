@@ -8,8 +8,6 @@
 #import "MASShortcut/MASShortcutView.h"
 #import "MASShortcut/MASShortcutView+Bindings.h"
 #import "MoLoginItem/MoLoginItem.h"
-#import "MoView.h"
-#import "MoTextField.h"
 #import "MoVFLHelper.h"
 #import "EventCenter.h"
 #import "Sparkle/SUUpdater.h"
@@ -34,12 +32,13 @@ static NSString * const kCalendarCellId = @"CalendarCell";
 
 @implementation PrefsGeneralVC
 {
-    MoTextField *_title;
+    NSTextField *_title;
     NSButton *_login;
     NSButton *_checkUpdates;
     NSPopUpButton *_firstDayPopup;
     NSTableView *_calendarsTV;
     NSPopUpButton *_agendaDaysPopup;
+    NSArray *_sourcesAndCalendars;
 }
 
 #pragma mark -
@@ -51,9 +50,8 @@ static NSString * const kCalendarCellId = @"CalendarCell";
     NSView *v = [NSView new];
 
     // Convenience function for making labels.
-    MoTextField* (^label)(NSString*) = ^MoTextField* (NSString *stringValue) {
-        MoTextField *txt = [MoTextField labelWithString:stringValue];
-        txt.translatesAutoresizingMaskIntoConstraints = NO;
+    NSTextField* (^label)(NSString*) = ^NSTextField* (NSString *stringValue) {
+        NSTextField *txt = [NSTextField labelWithString:stringValue];
         [v addSubview:txt];
         return txt;
     };
@@ -61,7 +59,6 @@ static NSString * const kCalendarCellId = @"CalendarCell";
     // Convenience function for making checkboxes.
     NSButton* (^chkbx)(NSString *) = ^NSButton* (NSString *title) {
         NSButton *chkbx = [NSButton checkboxWithTitle:title target:self action:nil];
-        chkbx.translatesAutoresizingMaskIntoConstraints = NO;
         [v addSubview:chkbx];
         return chkbx;
     };
@@ -72,11 +69,10 @@ static NSString * const kCalendarCellId = @"CalendarCell";
     _checkUpdates = chkbx(NSLocalizedString(@"Automatically check for updates", @""));
 
     // First day of week label
-    MoTextField *firstDayLabel = label(NSLocalizedString(@"First day of week:", @""));
+    NSTextField *firstDayLabel = label(NSLocalizedString(@"First day of week:", @""));
 
     // First day of week popup
     _firstDayPopup = [NSPopUpButton new];
-    _firstDayPopup.translatesAutoresizingMaskIntoConstraints = NO;
     [_firstDayPopup addItemsWithTitles:@[NSLocalizedString(@"Sunday", @""),
                                          NSLocalizedString(@"Monday", @""),
                                          NSLocalizedString(@"Tuesday", @""),
@@ -87,11 +83,10 @@ static NSString * const kCalendarCellId = @"CalendarCell";
     [v addSubview:_firstDayPopup];
     
     // Shortcut label
-    MoTextField *shortcutLabel = label(NSLocalizedString(@"Keyboard shortcut", @""));
+    NSTextField *shortcutLabel = label(NSLocalizedString(@"Keyboard shortcut", @""));
     
     // Shortcut view
     MASShortcutView *shortcutView = [MASShortcutView new];
-    shortcutView.translatesAutoresizingMaskIntoConstraints = NO;
     shortcutView.associatedUserDefaultsKey = kKeyboardShortcut;
     [v addSubview:shortcutView];
     
@@ -102,22 +97,23 @@ static NSString * const kCalendarCellId = @"CalendarCell";
     _calendarsTV.intercellSpacing = NSMakeSize(0, 0);
     _calendarsTV.dataSource = self;
     _calendarsTV.delegate = self;
+    if (@available(macOS 11.0, *)) {
+        _calendarsTV.style = NSTableViewStylePlain;
+    }
     [_calendarsTV addTableColumn:[[NSTableColumn alloc] initWithIdentifier:@"SourcesAndCalendars"]];
 
     // Calendars enclosing scrollview
     NSScrollView *tvContainer = [NSScrollView new];
-    tvContainer.translatesAutoresizingMaskIntoConstraints = NO;
     tvContainer.scrollerStyle = NSScrollerStyleLegacy;
     tvContainer.hasVerticalScroller = YES;
     tvContainer.documentView = _calendarsTV;
     [v addSubview:tvContainer];
     
     // Agenda days label
-    MoTextField *agendaDaysLabel = label(NSLocalizedString(@"Event list shows:", @""));
+    NSTextField *agendaDaysLabel = label(NSLocalizedString(@"Event list shows:", @""));
     
     // Agenda days popup
     _agendaDaysPopup = [NSPopUpButton new];
-    _agendaDaysPopup.translatesAutoresizingMaskIntoConstraints = NO;
     [_agendaDaysPopup addItemsWithTitles:@[NSLocalizedString(@"No events", @""),
                                      NSLocalizedString(@"1 day", @""),
                                      NSLocalizedString(@"2 days", @""),
@@ -125,7 +121,9 @@ static NSString * const kCalendarCellId = @"CalendarCell";
                                      NSLocalizedString(@"4 days", @""),
                                      NSLocalizedString(@"5 days", @""),
                                      NSLocalizedString(@"6 days", @""),
-                                     NSLocalizedString(@"7 days", @""),]];
+                                     NSLocalizedString(@"7 days", @""),
+                                     NSLocalizedString(@"14 days", @""),
+                                     NSLocalizedString(@"31 days", @"")]];
     [v addSubview:_agendaDaysPopup];
 
     MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @20} views:NSDictionaryOfVariableBindings(_login, _checkUpdates, firstDayLabel, _firstDayPopup, shortcutLabel, shortcutView, tvContainer, agendaDaysLabel, _agendaDaysPopup)];
@@ -141,12 +139,24 @@ static NSString * const kCalendarCellId = @"CalendarCell";
     // Center shortcutLabel
     [v addConstraint:[NSLayoutConstraint constraintWithItem:shortcutLabel attribute:NSLayoutAttributeCenterX relatedBy:NSLayoutRelationEqual toItem:v attribute:NSLayoutAttributeCenterX multiplier:1 constant:0]];
 
+    // Binding for Sparkle automatic update checks
+    [_checkUpdates bind:@"value" toObject:[SUUpdater sharedUpdater] withKeyPath:@"automaticallyChecksForUpdates" options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+    
+    // Bindings for first day of week
+    [_firstDayPopup bind:@"selectedIndex" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kWeekStartDOW] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+    
+    // Bindings for agenda days
+    [_agendaDaysPopup bind:@"selectedIndex" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kShowEventDays] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+
     self.view = v;
 }
 
 - (void)viewWillAppear
 {
     [super viewWillAppear];
+    
+    _sourcesAndCalendars = [self.ec sourcesAndCalendars];
+    
     [_calendarsTV reloadData];
 
     // The API used to check the login item's state (LSSharedFileList) causes
@@ -155,20 +165,11 @@ static NSString * const kCalendarCellId = @"CalendarCell";
     // disable this check.
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DoNotCheckLoginItemStatus"] == NO) {
         _login.hidden = NO;
-        _login.state = MOIsLoginItemEnabled() ? NSOnState : NSOffState;
+        _login.state = MOIsLoginItemEnabled() ? NSControlStateValueOn : NSControlStateValueOff;
     }
     else {
         _login.hidden = YES;
     }
-
-    // Binding for Sparkle automatic update checks
-    [_checkUpdates bind:@"value" toObject:[SUUpdater sharedUpdater] withKeyPath:@"automaticallyChecksForUpdates" options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
-
-    // Bindings for first day of week
-    [_firstDayPopup bind:@"selectedIndex" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kWeekStartDOW] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
-
-    // Bindings for agenda days
-    [_agendaDaysPopup bind:@"selectedIndex" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kShowEventDays] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
     
     _calendarsTV.enabled = self.ec.calendarAccessGranted;
     _agendaDaysPopup.enabled = self.ec.calendarAccessGranted;
@@ -179,7 +180,7 @@ static NSString * const kCalendarCellId = @"CalendarCell";
 
 - (void)launchAtLogin:(NSButton *)login
 {
-    MOEnableLoginItem(login.state == NSOnState);
+    MOEnableLoginItem(login.state == NSControlStateValueOn);
 }
 
 #pragma mark -
@@ -188,16 +189,20 @@ static NSString * const kCalendarCellId = @"CalendarCell";
 - (void)calendarClicked:(NSButton *)checkbox
 {
     NSInteger row = checkbox.tag;
-    BOOL selected = checkbox.state == NSOnState;
-    [self.ec.sourcesAndCalendars[row] setSelected:selected];
-    [self.ec updateSelectedCalendars];
+    BOOL selected = checkbox.state == NSControlStateValueOn;
+    CalendarInfo *info = _sourcesAndCalendars[row];
+    NSString *calendarIdentifier = info.calendar.calendarIdentifier;
+    [self.ec updateSelectedCalendarsForIdentifier:calendarIdentifier selected:selected];
+    
+    _sourcesAndCalendars = [self.ec sourcesAndCalendars];
+    [_calendarsTV reloadData];
 }
 
 
 - (NSInteger)numberOfRowsInTableView:(NSTableView *)tableView
 {
     // If access is denied, return 1 row for a message about granting access.
-    return self.ec.calendarAccessGranted ? [self.ec.sourcesAndCalendars count] : 1;
+    return self.ec.calendarAccessGranted ? [_sourcesAndCalendars count] : 1;
 }
 
 - (CGFloat)tableView:(NSTableView *)tableView heightOfRow:(NSInteger)row
@@ -229,7 +234,7 @@ static NSString * const kCalendarCellId = @"CalendarCell";
     // Show a list of sources and calendars with checkboxes.
     
     NSView *v = nil;
-    id obj = self.ec.sourcesAndCalendars[row];
+    id obj = _sourcesAndCalendars[row];
     
     if ([obj isKindOfClass:[NSString class]]) {
         SourceCellView *source = [tableView makeViewWithIdentifier:kSourceCellId owner:self];
@@ -243,7 +248,7 @@ static NSString * const kCalendarCellId = @"CalendarCell";
         if (!calendar) calendar = [CalendarCellView new];
         calendar.checkbox.target = self;
         calendar.checkbox.action = @selector(calendarClicked:);
-        calendar.checkbox.state = info.selected == NSOnState;
+        calendar.checkbox.state = info.selected == NSControlStateValueOn;
         calendar.checkbox.tag = row;
         calendar.checkbox.attributedTitle = [[NSAttributedString alloc] initWithString:info.calendar.title attributes:@{NSForegroundColorAttributeName: info.calendar.color, NSFontAttributeName: [NSFont boldSystemFontOfSize:12]}];
         v = calendar;
@@ -267,11 +272,9 @@ static NSString * const kCalendarCellId = @"CalendarCell";
     self = [super init];
     if (self) {
         self.identifier = kSourceCellId;
-        _textField = [NSTextField new];
+        _textField = [NSTextField labelWithString:@""];
         _textField.translatesAutoresizingMaskIntoConstraints = NO;
         _textField.font = [NSFont boldSystemFontOfSize:12];
-        _textField.editable = NO;
-        _textField.bezeled = NO;
         _textField.stringValue = @"";
         [self addSubview:_textField];
         [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-4-[_textField]-4-|" options:0 metrics:nil views:@{@"_textField": _textField}]];
@@ -295,7 +298,7 @@ static NSString * const kCalendarCellId = @"CalendarCell";
         self.identifier = kCalendarCellId;
         _checkbox = [NSButton new];
         _checkbox.translatesAutoresizingMaskIntoConstraints = NO;
-        [_checkbox setButtonType:NSSwitchButton];
+        [_checkbox setButtonType:NSButtonTypeSwitch];
         [self addSubview:_checkbox];
         [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-8-[_checkbox]-4-|" options:0 metrics:nil views:@{@"_checkbox": _checkbox}]];
         [self addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-4-[_checkbox]" options:0 metrics:nil views:@{@"_checkbox": _checkbox}]];

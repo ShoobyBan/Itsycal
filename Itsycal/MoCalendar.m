@@ -6,7 +6,6 @@
 //  Copyright (c) 2014 mowglii.com. All rights reserved.
 //
 
-#import "MoUtils.h"
 #import "MoCalendar.h"
 #import "MoCalCell.h"
 #import "MoCalGrid.h"
@@ -14,6 +13,7 @@
 #import "MoVFLHelper.h"
 #import "MoCalResizeHandle.h"
 #import "Themer.h"
+#import "Sizer.h"
 
 NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 
@@ -34,6 +34,7 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     NSBezierPath *_highlightPath;
     NSColor *_highlightColor;
     MoCalResizeHandle *_resizeHandle;
+    NSInteger _repeatCount;
 }
 
 - (instancetype)initWithFrame:(NSRect)frameRect
@@ -59,13 +60,9 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     _formatter = [NSDateFormatter new];
     _tooltipWC = [MoCalToolTipWC new];
 
-    _monthLabel = [NSTextField new];
-    _monthLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    _monthLabel.font = [NSFont systemFontOfSize:14 weight:NSFontWeightSemibold];
-    _monthLabel.textColor = [[Themer shared] monthTextColor];
-    _monthLabel.bezeled = NO;
-    _monthLabel.editable = NO;
-    _monthLabel.drawsBackground = NO;
+    _monthLabel = [NSTextField labelWithString:@""];
+    _monthLabel.font = [NSFont systemFontOfSize:SizePref.calendarTitleFontSize weight:NSFontWeightSemibold];
+    _monthLabel.textColor = Theme.monthTextColor;
     
     // Make long labels compress and show ellipsis instead of forcing the window wider.
     // Prevent short label from pulling buttons leftward toward it.
@@ -76,14 +73,10 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     // Convenience function to make buttons.
     MoButton* (^btn)(NSString*, SEL) = ^MoButton* (NSString *imageName, SEL action) {
         MoButton *btn = [MoButton new];
-        [btn setButtonType:NSMomentaryChangeButton];
-        [btn setBordered:NO];
         [btn setImage:[NSImage imageNamed:imageName]];
         [btn setAlternateImage:[NSImage imageNamed:[imageName stringByAppendingString:@"Alt"]]];
         [btn setTarget:self];
         [btn setAction:action];
-        [btn setImagePosition:NSImageOnly];
-        [btn setTranslatesAutoresizingMaskIntoConstraints:NO];
         [self addSubview:btn];
         return btn;
     };
@@ -99,13 +92,12 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     _dowGrid  = [[MoCalGrid alloc] initWithRows:1 columns:7 horizontalMargin:6 verticalMargin:0];
 
     for (MoCalCell *cell in _dowGrid.cells) {
-        cell.textField.font = [NSFont systemFontOfSize:11 weight:NSFontWeightSemibold];
+        cell.textField.font = [NSFont systemFontOfSize:SizePref.fontSize weight:NSFontWeightSemibold];
     }
 
     // The _resizeHandle is at the bottom of the calendar.
     _resizeHandle = [MoCalResizeHandle new];
-    _resizeHandle.translatesAutoresizingMaskIntoConstraints = NO;
-    _resizeHandle.alphaValue = 0.1;
+    [_resizeHandle dim:YES];
 
     [self addSubview:_monthLabel];
     [self addSubview:_dateGrid];
@@ -136,7 +128,7 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     _todayDate    = MakeDate(1986, 10, 12); // so calendar will draw on first display
     [self setMonthDate:_todayDate selectedDate:_todayDate];
     
-    REGISTER_FOR_THEME_CHANGE;
+    REGISTER_FOR_SIZE_CHANGE;
 }
 
 - (void)dealloc
@@ -183,6 +175,16 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     }
 }
 
+- (MoDate)firstDate
+{
+    return _dateGrid.cells.firstObject.date;
+}
+
+- (MoDate)lastDate
+{
+    return _dateGrid.cells.lastObject.date;
+}
+
 - (void)setWeekStartDOW:(NSInteger)weekStartDOW
 {
     if (weekStartDOW < 0 || weekStartDOW > 6) {
@@ -215,8 +217,20 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     CGFloat constant = showWeeks ? NSWidth(_weekGrid.frame) : 2;
     [NSAnimationContext runAnimationGroup:^(NSAnimationContext *ctx) {
         [ctx setDuration:0.1];
-        [_weeksConstraint.animator setConstant:constant];
+        [self->_weeksConstraint.animator setConstant:constant];
     } completionHandler:NULL];
+}
+
+- (void)setShowEventDots:(BOOL)showEventDots
+{
+    _showEventDots = showEventDots;
+    [self reloadData];
+}
+
+- (void)setUseColoredDots:(BOOL)useColoredDots
+{
+    _useColoredDots = useColoredDots;
+    [self reloadData];
 }
 
 - (void)setHighlightedDOWs:(DOWMask)highlightedDOWs
@@ -240,7 +254,7 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     if (tooltipVC != nil) {
         tooltipVC.view.translatesAutoresizingMaskIntoConstraints = NO;
         [contentView addSubview:tooltipVC.view];
-        [contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-3-[v]-3-|" options:0 metrics:nil views:@{@"v":_tooltipVC.view}]];
+        [contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(-3)-[v]-(-3)-|" options:0 metrics:nil views:@{@"v":_tooltipVC.view}]];
         [contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-2-[v]-2-|" options:0 metrics:nil views:@{@"v":_tooltipVC.view}]];
     }
 }
@@ -281,17 +295,21 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     NSArray *dows = [_formatter veryShortWeekdaySymbols];
     NSString *month = [NSString stringWithFormat:@"%@ %zd", months[self.monthDate.month], self.monthDate.year];
     [_monthLabel setStringValue:month];
+    // Make French dow strings lowercase because that is the convention
+    // in France. -veryShortWeekdaySymbols should have done this for us.
+    if ([[NSLocale currentLocale].localeIdentifier hasPrefix:@"fr"]) {
+        dows = @[@"d", @"l", @"m", @"m", @"j", @"v", @"s"];
+    }
+    // macOS gives the English veryShortWeekdaySymbols for Esperanto.
+    else if ([[NSLocale currentLocale].localeIdentifier hasPrefix:@"eo"]) {
+        dows = @[@"D", @"L", @"M", @"M", @"Ĵ", @"V", @"S"];
+    }
     for (NSInteger col = 0; col < 7; col++) {
         NSString *dow = [NSString stringWithFormat:@"%@", dows[COL_DOW(self.weekStartDOW, col)]];
-        // Make French dow strings lowercase because that is the convention
-        // in France. -veryShortWeekdaySymbols should have done this for us.
-        if ([[NSLocale currentLocale].localeIdentifier hasPrefix:@"fr"]) {
-            dow = [dow lowercaseString];
-        }
         [[_dowGrid.cells[col] textField] setStringValue:dow];
         [[_dowGrid.cells[col] textField] setTextColor:[self columnIsMemberOfHighlightedDOWs:col] 
-         ? [[Themer shared] highlightedDOWTextColor]
-         : [[Themer shared] DOWTextColor]];
+         ? Theme.highlightedDOWTextColor
+         : Theme.DOWTextColor];
     }
     
     // Get the first of the month.
@@ -314,10 +332,9 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
             cell.textField.integerValue = date.day;
             cell.date = date;
             cell.isToday = CompareDates(date, self.todayDate) == 0;
+            cell.isHighlighted = [self columnIsMemberOfHighlightedDOWs:col];
+            cell.isInCurrentMonth = (date.month == self.monthDate.month);
             if (date.month == self.monthDate.month) {
-                cell.textField.textColor = [self columnIsMemberOfHighlightedDOWs:col] 
-                  ? [[Themer shared] highlightedDOWTextColor] 
-                  : [[Themer shared] currentMonthTextColor];
                 if (date.day == 1) {
                     _monthStartCell = cell;
                 }
@@ -325,17 +342,12 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
                     _monthEndCell = cell;
                 }
             }
-            else {
-                cell.textField.textColor = [self columnIsMemberOfHighlightedDOWs:col] 
-                  ? [[[Themer shared] highlightedDOWTextColor] colorWithAlphaComponent:0.6] 
-                  : [[Themer shared] noncurrentMonthTextColor];
-            }
             // ISO 8601 weeks are defined to start on Monday (and
             // really only make sense if self.weekStartDOW is Monday).
             // If the current column is Monday, use this date to
             // calculate the week number for this row.
             if (col == DOW_COL(self.weekStartDOW, 1)) {
-                [_weekGrid.cells[row] textField].textColor = [[Themer shared] weekTextColor];
+                [_weekGrid.cells[row] textField].textColor = Theme.weekTextColor;
                 [_weekGrid.cells[row] textField].integerValue = WeekOfYear(date.year, date.month, date.day);
             }
             date = AddDaysToDate(1, date);
@@ -349,7 +361,9 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 - (void)reloadData
 {
     for (MoCalCell *c in _dateGrid.cells) {
-        c.hasDot = [self.delegate dateHasDot:c.date];
+        c.dotColors = self.showEventDots
+            ? [self.delegate dotColorsForDate:c.date useColor:self.useColoredDots]
+            : nil;
     }
     [_tooltipWC endTooltip];
 }
@@ -366,7 +380,8 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
         }
     }
     if (startCell && endCell) {
-        _highlightPath = [self bezierPathWithStartCell:startCell endCell:endCell radius:3 inset:2.5 useRects:YES];
+        CGFloat radius = SizePref.cellRadius;
+        _highlightPath = [self bezierPathWithStartCell:startCell endCell:endCell radius:radius inset:3 useRects:YES];
         _highlightColor = color;
         // Normalize location of _highlightPath. We will tranlsate it
         // again in drawRect to the correct location.
@@ -384,10 +399,10 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     [self setNeedsDisplay:YES];
 }
 
-- (void)themeChanged:(id)sender
+- (void)sizeChanged:(id)sender
 {
-    _monthLabel.textColor = [[Themer shared] monthTextColor];
-    [self updateCalendar];
+    _monthLabel.font = [NSFont systemFontOfSize:SizePref.calendarTitleFontSize weight:NSFontWeightSemibold];
+    _weeksConstraint.constant = self.showWeeks ? SizePref.cellSize : 2;
 }
 
 #pragma mark -
@@ -409,34 +424,56 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
         [_btnToday performClick:self];
     }
     else if ((keyChar == 'H' && shiftFlag) || (keyChar == NSLeftArrowFunctionKey && noFlags)) {
-        [_btnPrev performClick:self];
+        NSInteger n = [self repeatCountify:-1];
+        if (n < -1) {
+            self.monthDate = AddMonthsToMonth(n, self.monthDate);
+        } else {
+            [_btnPrev performClick:self];
+        }
     }
     else if ((keyChar == 'L' && shiftFlag) || (keyChar == NSRightArrowFunctionKey && noFlags)) {
-        [_btnNext performClick:self];
+        NSInteger n = [self repeatCountify:1];
+        if (n > 1) {
+            self.monthDate = AddMonthsToMonth(n, self.monthDate);
+        } else {
+            [_btnNext performClick:self];
+        }
     }
     else if ((keyChar == 'J' && shiftFlag) || (keyChar == NSDownArrowFunctionKey && noFlags)) {
-        [self showNextYear:self];
+        NSInteger n = [self repeatCountify:12];
+        self.monthDate = AddMonthsToMonth(n, self.monthDate);
     }
     else if ((keyChar == 'K' && shiftFlag) || (keyChar == NSUpArrowFunctionKey && noFlags)) {
-        [self showPreviousYear:self];
+        NSInteger n = [self repeatCountify:-12];
+        self.monthDate = AddMonthsToMonth(n, self.monthDate);
     }
     else if ((keyChar == 'h' && noFlags) || (keyChar == NSLeftArrowFunctionKey && shiftFlag)) {
-        [self moveSelectionByDays:-1];
+        NSInteger n = [self repeatCountify:-1];
+        [self moveSelectionByDays:n];
     }
     else if ((keyChar == 'l' && noFlags) || (keyChar == NSRightArrowFunctionKey && shiftFlag)) {
-        [self moveSelectionByDays:1];
+        NSInteger n = [self repeatCountify:1];
+        [self moveSelectionByDays:n];
     }
     else if ((keyChar == 'j' && noFlags) || (keyChar == NSDownArrowFunctionKey && shiftFlag)) {
-        [self moveSelectionByDays:7];
+        NSInteger n = [self repeatCountify:7];
+        [self moveSelectionByDays:n];
     }
     else if ((keyChar == 'k' && noFlags) || (keyChar == NSUpArrowFunctionKey && shiftFlag)) {
-        [self moveSelectionByDays:-7];
+        NSInteger n = [self repeatCountify:-7];
+        [self moveSelectionByDays:n];
     }
     else if (keyChar == 'j' && ctrlFlag) {
         [self addRow];
     }
     else if (keyChar == 'k' && ctrlFlag) {
         [self removeRow];
+    }
+    else if ([[NSCharacterSet decimalDigitCharacterSet] characterIsMember:keyChar] && noFlags) {
+        [self repeatCountUpdate:keyChar];
+    }
+    else if ([theEvent.characters hasPrefix:@"#"]) {
+        [self showDateInfo];
     }
     else {
         [super keyDown:theEvent];
@@ -446,6 +483,7 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 
 - (void)mouseDown:(NSEvent *)theEvent
 {
+    CGFloat sz = SizePref.cellSize;
     NSPoint initialDragPoint = [self convertPoint:[theEvent locationInWindow] fromView:nil];
     BOOL isDragging = NSPointInRect(initialDragPoint, _resizeHandle.frame);
 
@@ -456,10 +494,10 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
         }
         else if ([theEvent type] == NSEventTypeLeftMouseDragged) {
             NSPoint location = [self convertPoint:[theEvent locationInWindow] fromView:nil];
-            if (location.y >= initialDragPoint.y + kMoCalCellHeight && _dateGrid.rows > 6) {
+            if (location.y >= initialDragPoint.y + sz && _dateGrid.rows > 6) {
                 [self removeRow];
             }
-            else if (location.y <= initialDragPoint.y - kMoCalCellHeight && _dateGrid.rows < 10) {
+            else if (location.y <= initialDragPoint.y - sz && _dateGrid.rows < 10) {
                 [self addRow];
             }
         }
@@ -468,7 +506,7 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     // Dim resizeHandle if drag ends outside of it (-mouseExited: won't catch this).
     NSPoint finalDragPoint = [self convertPoint:[theEvent locationInWindow] fromView:nil];
     BOOL isInResizeHandle = NSPointInRect(finalDragPoint, _resizeHandle.frame);
-    _resizeHandle.animator.alphaValue = isInResizeHandle ? 1 : 0.1;
+    [_resizeHandle dim:!isInResizeHandle];
 }
 
 - (void)mouseUp:(NSEvent *)theEvent
@@ -486,11 +524,23 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
         if (self.target && self.doubleAction) {
             [NSApp sendAction:self.doubleAction to:self.target from:self];
         }
+        [_tooltipWC endTooltip];
     }
 }
 
 - (void)mouseMoved:(NSEvent *)theEvent
 {
+    if (!self.window.isVisible) {
+        // On macOS 10.14, -mouseMoved: can be called even when the
+        // calendar (and its window) are *not visible* under certain
+        // circumstances. This leads to tooltips mysteriously popping
+        // up out of nowhere when the user's mouse is where Itsycal's
+        // window *would be* if it were actually showing. By updating
+        // the tracking areas, -mouseMoved: is no longer erroneously
+        // called.
+        [self updateTrackingAreas];
+        return;
+    }
     NSPoint locationInWindow = [theEvent locationInWindow];
     NSPoint locationInDates  = [_dateGrid convertPoint:locationInWindow fromView:nil];
     MoCalCell *hoveredCell   = [_dateGrid cellAtPoint:locationInDates];
@@ -499,7 +549,7 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
         _hoveredCell = hoveredCell;
         _hoveredCell.isHovered = YES;
         
-        if (_hoveredCell.hasDot && _tooltipVC != nil) {
+        if (_tooltipWC.vc != nil) {
             NSRect rect = [self convertRect:_hoveredCell.frame fromView:_dateGrid];
             rect = NSOffsetRect(rect, self.frame.origin.x, self.frame.origin.y);
             rect = [self.window convertRectToScreen:rect];
@@ -514,14 +564,14 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 - (void)mouseEntered:(NSEvent *)theEvent
 {
     if ([[(NSDictionary *)[theEvent userData] valueForKey:@"area"] isEqualToString: @"resizeHandle"]) {
-        _resizeHandle.animator.alphaValue = 1;
+        [_resizeHandle dim:NO];
     }
 }
 
 - (void)mouseExited:(NSEvent *)theEvent
 {
     if ([[(NSDictionary *)[theEvent userData] valueForKey:@"area"] isEqualToString: @"resizeHandle"]) {
-        _resizeHandle.animator.alphaValue = 0.1;
+        [_resizeHandle dim:YES];
     }
     else { // userData[area] == "dateGrid"
         _hoveredCell.isHovered = NO;
@@ -569,6 +619,67 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 }
 
 #pragma mark
+#pragma mark Repeat count
+
+- (void)repeatCountUpdate:(unichar)keyChar
+{
+    // Is there a better way to convert unichar to NSInteger?
+    NSInteger n = (NSInteger)keyChar - 48;
+    if (_repeatCount < 100) { // max _repeatCount allowed is 999
+        [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(repeatCountClear) object:nil];
+        _repeatCount = _repeatCount*10 + n;
+        [self performSelector:@selector(repeatCountClear) withObject:nil afterDelay:3];
+    }
+}
+
+- (void)repeatCountClear
+{
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(repeatCountClear) object:nil];
+    _repeatCount = 0;
+}
+
+- (NSInteger)repeatCountify:(NSInteger)n
+{
+    NSInteger result = (_repeatCount > 0) ? n * _repeatCount : n;
+    [self repeatCountClear];
+    return result;
+}
+
+#pragma mark
+#pragma mark Day info
+
+- (void)showDateInfo
+{
+    static NSNumberFormatter *groupingFormatter = nil;
+    if (!groupingFormatter) {
+        groupingFormatter = [NSNumberFormatter new];
+        groupingFormatter.numberStyle = NSNumberFormatterDecimalStyle;
+        groupingFormatter.groupingSeparator = [NSLocale.currentLocale objectForKey:NSLocaleGroupingSeparator];
+    }
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(clearDateInfo) object:nil];
+    // Get selectedDate's offset from today.
+    NSInteger dayDiff = CompareDates(self.selectedDate, self.todayDate);
+    NSString *dayInfo = [groupingFormatter stringFromNumber:@(labs(dayDiff))];
+    dayInfo = (dayDiff >= 0)?
+        [@"+" stringByAppendingString:dayInfo]:
+        [@"−" stringByAppendingString:dayInfo];
+    // Get day of the year.
+    MoDate firstOfYear = MakeDate(self.selectedDate.year, 0, 1);
+    NSInteger dayOfYear = CompareDates(self.selectedDate, firstOfYear) + 1;
+    dayInfo = [NSString stringWithFormat:@"%@ ∕ %zd", dayInfo, dayOfYear];
+    [_monthLabel setStringValue:dayInfo];
+    [self performSelector:@selector(clearDateInfo) withObject:nil afterDelay:2];
+}
+
+- (void)clearDateInfo
+{
+    // This should match month code in -updateCalendar
+    NSArray *months = [_formatter shortMonthSymbols];
+    NSString *month = [NSString stringWithFormat:@"%@ %zd", months[self.monthDate.month], self.monthDate.year];
+    [_monthLabel setStringValue:month];
+}
+
+#pragma mark
 #pragma mark Utilities
 
 - (void)setMonthDate:(MoDate)monthDate selectedDate:(MoDate)selectedDate
@@ -578,7 +689,8 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     
     BOOL didChangeMonth = NO;
     
-    monthDate.day = 1;
+    monthDate = MakeDate(monthDate.year, monthDate.month, 1);
+    
     if (CompareDates(monthDate, self.monthDate) != 0) {
         _monthDate = monthDate;
         [self updateCalendar];
@@ -597,15 +709,11 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 - (void)moveSelectionByDays:(NSInteger)days
 {
     MoDate newSelectedDate = AddDaysToDate(days, self.selectedDate);
-    MoDate firstCellDate = [(MoCalCell *)_dateGrid.cells.firstObject date];
-    MoDate lastCellDate  = [(MoCalCell *)_dateGrid.cells.lastObject date];
-    if (CompareDates(newSelectedDate, firstCellDate) < 0) {
-        MoDate prevMonthDate = AddMonthsToMonth(-1, self.monthDate);
-        [self setMonthDate:prevMonthDate selectedDate:newSelectedDate];
-    }
-    else if (CompareDates(newSelectedDate, lastCellDate) > 0) {
-        MoDate nextMonthDate = AddMonthsToMonth(1, self.monthDate);
-        [self setMonthDate:nextMonthDate selectedDate:newSelectedDate];
+    MoDate firstCellDate = [_dateGrid.cells.firstObject date];
+    MoDate lastCellDate  = [_dateGrid.cells.lastObject date];
+    if (CompareDates(newSelectedDate, firstCellDate) < 0 ||
+        CompareDates(newSelectedDate, lastCellDate ) > 0) {
+        [self setMonthDate:newSelectedDate selectedDate:newSelectedDate];
     }
     else {
         [self setMonthDate:self.monthDate selectedDate:newSelectedDate];
@@ -657,27 +765,15 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 
 - (void)drawRect:(NSRect)dirtyRect
 {
-    // If dirtyRect is contained in the top part of the calendar
-    // which is just the plain background color, just return.
-    // This will happen, for example, when the buttons are pressed.
-    // Otherwise, redraw the whole view.
+    [Theme.mainBackgroundColor set];
+    NSRectFill(self.bounds);
     
-    if (NSMinY(dirtyRect) > NSMaxY(_dateGrid.frame)+1) {
-        return;
-    }
-    
-    NSBezierPath *outlinePath = [self bezierPathWithStartCell:_monthStartCell endCell:_monthEndCell radius:6 inset:0 useRects:NO];
-    
-    [[[Themer shared] currentMonthOutlineColor] set];
-    [outlinePath setLineWidth:2];
-    [outlinePath stroke];
-//    [[[Themer shared] currentMonthFillColor] set];
-//    [outlinePath fill];
-    
+    CGFloat radius = SizePref.cellRadius + 3;
+    CGFloat sz = SizePref.cellSize;
     if (self.highlightedDOWs) {
         NSRect weekendRect = [self convertRect:[_dateGrid cellsRect] fromView:_dateGrid];
-        weekendRect.size.width = kMoCalCellWidth;
-        [[NSColor colorWithWhite:0.1 alpha:0.05] set];
+        weekendRect.size.width = sz;
+        [Theme.highlightedDOWBackgroundColor set];
         NSInteger numColsToHighlight = 0;
         for (NSInteger col = 0; col <= 7; col++) {
             if (col < 7 && [self columnIsMemberOfHighlightedDOWs:col]) {
@@ -686,9 +782,9 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
             else {
                 if (numColsToHighlight) {
                     NSInteger startCol = col - numColsToHighlight;
-                    NSRect rect = NSOffsetRect(weekendRect, startCol * kMoCalCellWidth, 0);
+                    NSRect rect = NSOffsetRect(weekendRect, startCol * sz, 0);
                     rect.size.width *= numColsToHighlight;
-                    [[NSBezierPath bezierPathWithRoundedRect:rect xRadius:4 yRadius:4] fill];
+                    [[NSBezierPath bezierPathWithRoundedRect:rect xRadius:radius yRadius:radius] fill];
                 }
                 numColsToHighlight = 0;
             }
@@ -703,14 +799,15 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
         [t translateXBy:NSMinX(_dateGrid.frame) yBy:0];
         NSBezierPath *highlightPath = [_highlightPath copy];
         [highlightPath transformUsingAffineTransform:t];
-        NSColor *outlineColor = [[Themer shared] themeIndex] != 0
-          ? [_highlightColor blendedColorWithFraction:0.8 ofColor:[NSColor whiteColor]]
-          : [_highlightColor blendedColorWithFraction:0.6 ofColor:[NSColor blackColor]];
-        [[outlineColor colorWithAlphaComponent:0.4] setStroke];
-        [[_highlightColor colorWithAlphaComponent:0.3] setFill];
-        [highlightPath stroke];
+        [[_highlightColor colorWithAlphaComponent:0.36] setFill];
         [highlightPath fill];
     }
+
+    NSBezierPath *outlinePath = [self bezierPathWithStartCell:_monthStartCell endCell:_monthEndCell radius:radius inset:0 useRects:NO];
+    
+    [Theme.currentMonthOutlineColor set];
+    [outlinePath setLineWidth:1.5];
+    [outlinePath stroke];
 }
 
 - (NSBezierPath *)bezierPathWithStartCell:(MoCalCell *)startCell endCell:(MoCalCell *)endCell radius:(CGFloat)r inset:(CGFloat)inset useRects:(BOOL)useRects

@@ -8,7 +8,6 @@
 
 #import <Cocoa/Cocoa.h>
 #import "MoDate.h"
-#import "MoUtils.h"
 
 // NSUserDefaults keys
 extern NSString * const kPinItsycal;
@@ -24,3 +23,5 @@ extern NSString * const kAllowOutsideApplicationsFolder;
 extern NSString * const kClockFormat;
 extern NSString * const kHideIcon;
 extern NSString * const kShowLocation;
+extern NSString * const kShowEventDots;
+extern NSString * const kUseColoredDots;

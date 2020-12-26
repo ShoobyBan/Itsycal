@@ -8,8 +8,8 @@
 
 #import "EventViewController.h"
 #import "EventCenter.h"
-#import "MoView.h"
 #import "MoVFLHelper.h"
+#import "Themer.h"
 
 @implementation EventViewController
 {
@@ -22,23 +22,19 @@
 - (void)loadView
 {
     // View controller content view
-    MoView *v = [MoView new];
+    NSView *v = [NSView new];
     
     // TextField maker
     NSTextField* (^txt)(NSString*, BOOL) = ^NSTextField* (NSString *stringValue, BOOL isEditable) {
-        NSTextField *txt = [NSTextField new];
-        txt.translatesAutoresizingMaskIntoConstraints = NO;
-        txt.editable = isEditable;
-        txt.bezeled = isEditable;
-        txt.bezelStyle = NSTextFieldRoundedBezel;
-        txt.drawsBackground = isEditable;
+        NSTextField *txt;
         if (isEditable) {
+            txt = [NSTextField textFieldWithString:@""];
             txt.placeholderString = stringValue;
+            txt.bezelStyle = NSTextFieldRoundedBezel;
         }
         else {
-            txt.stringValue = stringValue;
+            txt = [NSTextField labelWithString:stringValue];
             txt.alignment = NSTextAlignmentRight;
-            txt.textColor = [NSColor grayColor];
         }
         [v addSubview:txt];
         return txt;
@@ -47,12 +43,12 @@
     // DatePicker maker
     NSDatePicker* (^picker)(void) = ^NSDatePicker* () {
         NSDatePicker *picker = [NSDatePicker new];
-        picker.translatesAutoresizingMaskIntoConstraints = NO;
-        picker.datePickerStyle = NSTextFieldDatePickerStyle;
+        picker.datePickerStyle = NSDatePickerStyleTextField;
+        picker.locale = NSLocale.currentLocale;
         picker.bezeled  = NO;
         picker.bordered = NO;
         picker.drawsBackground = NO;
-        picker.datePickerElements = NSYearMonthDayDatePickerElementFlag | NSHourMinuteDatePickerElementFlag;
+        picker.datePickerElements = NSDatePickerElementFlagYearMonthDay | NSDatePickerElementFlagHourMinute;
         [v addSubview:picker];
         return picker;
     };
@@ -60,10 +56,16 @@
     // PopUpButton maker
     NSPopUpButton* (^popup)(void) = ^NSPopUpButton* () {
         NSPopUpButton *pop = [NSPopUpButton new];
-        pop.translatesAutoresizingMaskIntoConstraints = NO;
         pop.target = self;
         [v addSubview:pop];
         return pop;
+    };
+    
+    // Button maker
+    NSButton* (^btn)(NSString*, id, SEL) = ^NSButton* (NSString *title, id target, SEL action) {
+        NSButton *btn = [NSButton buttonWithTitle:title target:target action:action];
+        [v addSubview:btn];
+        return btn;
     };
     
     // Title and location text fields
@@ -73,11 +75,10 @@
     
     // Login checkbox
     _allDayCheckbox = [NSButton new];
-    _allDayCheckbox.translatesAutoresizingMaskIntoConstraints = NO;
     _allDayCheckbox.title = @"";
     _allDayCheckbox.target = self;
     _allDayCheckbox.action = @selector(allDayClicked:);
-    [_allDayCheckbox setButtonType:NSSwitchButton];
+    [_allDayCheckbox setButtonType:NSButtonTypeSwitch];
     [v addSubview:_allDayCheckbox];
     
     // Static labels
@@ -94,7 +95,7 @@
     _startDate.action = @selector(startDateChanged:);
     _endDate    = picker();
     _repEndDate = picker();
-    _repEndDate.datePickerElements = NSYearMonthDayDatePickerElementFlag;
+    _repEndDate.datePickerElements = NSDatePickerElementFlagYearMonthDay;
     
     // Popups
     _repPopup = popup();
@@ -102,7 +103,7 @@
     [_repPopup addItemsWithTitles:@[NSLocalizedString(@"None", @"Repeat none"),
                                     NSLocalizedString(@"Every Day", @""),
                                     NSLocalizedString(@"Every Week", @""),
-                                    NSLocalizedString(@"Every 2 Weeks", @""),
+                                    [NSString stringWithFormat:NSLocalizedString(@"Every %zd Weeks", nil), (NSInteger)2],
                                     NSLocalizedString(@"Every Month", @""),
                                     NSLocalizedString(@"Every Year", @"")]];
     
@@ -126,17 +127,12 @@
     _calPopup = popup();
     _calPopup.menu.autoenablesItems = NO;
     
-    // Save button
-    _saveButton = [NSButton new];
-    _saveButton.translatesAutoresizingMaskIntoConstraints = NO;
-    _saveButton.bezelStyle = NSRoundedBezelStyle;
-    _saveButton.title = NSLocalizedString(@"Save Event", @"");
+    // Save and Cancel buttons
+    _saveButton = btn(NSLocalizedString(@"Save Event", @""), self, @selector(saveEvent:));
     _saveButton.enabled = NO; // we'll enable when the form is valid.
-    _saveButton.target = self;
-    _saveButton.action = @selector(saveEvent:);
-    [v addSubview:_saveButton];
-
-    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:nil views:NSDictionaryOfVariableBindings(_title, _location, _allDayCheckbox, allDayLabel, startsLabel, endsLabel, _startDate, _endDate, repLabel, _alertLabel, _repPopup, _repEndLabel, _repEndPopup, _repEndDate, _alertPopup, _calPopup, _saveButton)];
+    NSButton *cancelButton = btn(NSLocalizedString(@"Cancel", @""), self, @selector(cancelOperation:));
+    
+    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:nil views:NSDictionaryOfVariableBindings(_title, _location, _allDayCheckbox, allDayLabel, startsLabel, endsLabel, _startDate, _endDate, repLabel, _alertLabel, _repPopup, _repEndLabel, _repEndPopup, _repEndDate, _alertPopup, _calPopup, cancelButton, _saveButton)];
 
     [vfl :@"V:|-[_title]-[_location]-15-[_allDayCheckbox]"];
     [vfl :@"V:[_allDayCheckbox]-[_startDate]-[_endDate]-[_repPopup]-[_repEndPopup]-20-[_alertPopup]-20-[_calPopup]" :NSLayoutFormatAlignAllLeading];
@@ -150,8 +146,8 @@
     [vfl :@"H:|-[_repEndLabel]-[_repEndPopup]-[_repEndDate]-|" :NSLayoutFormatAlignAllBaseline];
     [vfl :@"H:|-[_alertLabel]-[_alertPopup]-|" :NSLayoutFormatAlignAllBaseline];
     [vfl :@"H:[_calPopup]-|" :NSLayoutFormatAlignAllBaseline];
-    [vfl :@"H:[_saveButton]-|"];
-    
+    [vfl :@"H:[cancelButton]-[_saveButton]-|" :NSLayoutFormatAlignAllCenterY];
+
     // Require All-day checkbox height to hug the checkbox. Without this,
     // the layout will look funny when the title is multi-line.
     [_allDayCheckbox setContentHuggingPriority:999 forOrientation:NSLayoutConstraintOrientationVertical];
@@ -169,7 +165,6 @@
 {
     [super viewWillAppear];
 
-    self.view.window.styleMask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable;
     self.view.window.defaultButtonCell = _saveButton.cell;
     
     // If self.calSelectedDate is today, the initialStart is set to
@@ -190,7 +185,7 @@
     // Initial values for form fields.
     _title.stringValue = @"";
     _location.stringValue = @"";
-    _allDayCheckbox.state = NSOffState;
+    _allDayCheckbox.state = NSControlStateValueOff;
     _startDate.datePickerElements = NSYearMonthDayDatePickerElementFlag | NSHourMinuteDatePickerElementFlag;
     _endDate.datePickerElements   = NSYearMonthDayDatePickerElementFlag | NSHourMinuteDatePickerElementFlag;
     _startDate.dateValue = initialStart;
@@ -249,10 +244,28 @@
     [self.view.window makeFirstResponder:_title];
 }
 
-- (void)cancel:(id)sender
+- (void)viewDidAppear
 {
-    // User pressed 'esc'.
-    [[self presentingViewController] dismissViewController:self];
+    // Add a colored subview at the bottom the of popover's
+    // window's frameView's view hierarchy. This should color
+    // the popover including the arrow.
+    NSView *frameView = self.view.window.contentView.superview;
+    if (!frameView) return;
+    if (frameView.subviews.count > 0
+        && [frameView.subviews[0].identifier isEqualToString:@"popoverBackgroundBox"]) return;
+    NSBox *backgroundColorView = [[NSBox alloc] initWithFrame:frameView.bounds];
+    backgroundColorView.identifier = @"popoverBackgroundBox";
+    backgroundColorView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    backgroundColorView.boxType = NSBoxCustom;
+    backgroundColorView.borderType = NSNoBorder;
+    backgroundColorView.fillColor = Theme.mainBackgroundColor;
+    [frameView addSubview:backgroundColorView positioned:NSWindowBelow relativeTo:nil];
+}
+
+- (void)cancelOperation:(id)sender
+{
+    // User hit 'esc' or pressed Cancel button.
+    [self.enclosingPopover close];
 }
 
 - (void)controlTextDidChange:(NSNotification *)obj
@@ -265,7 +278,7 @@
 - (void)allDayClicked:(NSButton *)allDayCheckbox
 {
     // The All-day checkbox toggles the hour/minute controls of the date pickers.
-    if (allDayCheckbox.state == NSOnState) {
+    if (allDayCheckbox.state == NSControlStateValueOn) {
         _startDate.datePickerElements = NSYearMonthDayDatePickerElementFlag;
         _endDate.datePickerElements = NSYearMonthDayDatePickerElementFlag;
     }
@@ -277,7 +290,7 @@
     // The All-day checkbox also toggles the alert popup.
     // Currently, we don't allow the user to set an alert for an All-day event,
     // but a 1-day-ahead alert will be set by the system by default.
-    if (allDayCheckbox.state == NSOnState) {
+    if (allDayCheckbox.state == NSControlStateValueOn) {
         _alertLabel.hidden = YES;
         _alertPopup.hidden = YES;
     }
@@ -328,10 +341,10 @@
 
     // Create the event.
     NSCharacterSet *whitespaceSet = [NSCharacterSet whitespaceAndNewlineCharacterSet];
-    EKEvent *event  = [EKEvent eventWithEventStore:self.ec.store];
+    EKEvent *event  = [self.ec newEvent];
     event.title     = [_title.stringValue stringByTrimmingCharactersInSet:whitespaceSet];
     event.location  = [_location.stringValue stringByTrimmingCharactersInSet:whitespaceSet];
-    event.allDay    = _allDayCheckbox.state == NSOnState;
+    event.allDay    = _allDayCheckbox.state == NSControlStateValueOn;
     event.startDate = startDate;
     event.endDate   = endDate;
     event.calendar  = calInfo.calendar;
@@ -404,12 +417,12 @@
     
     // Commit the event.
     NSError *error = NULL;
-    BOOL saved = [self.ec.store saveEvent:event span:EKSpanThisEvent commit:YES error:&error];
+    BOOL saved = [self.ec saveEvent:event error:&error];
     if (saved == NO && error != nil) {
         [[NSAlert alertWithError:error] runModal];
     }
     else {
-        [[self presentingViewController] dismissViewController:self];
+        [self.enclosingPopover close];
     }
 }
 
